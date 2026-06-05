@@ -1,9 +1,9 @@
 # Railway deployment configuration
 # Single service: builds frontend, then starts backend (which serves frontend)
+# Build phases are defined in nixpacks.toml — do NOT duplicate here.
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd client && npm ci && npm run build && cd ../server && npm ci"
 
 [deploy]
 startCommand = "node server/server.js"

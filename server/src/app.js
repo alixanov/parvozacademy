@@ -5,7 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import { rateLimit } from 'express-rate-limit';
 
 // ─── Route modules ────────────────────────────────────────────────────────────
@@ -34,6 +34,10 @@ import packagesRoutes    from './modules/packages/packages.routes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 const IS_PROD    = process.env.NODE_ENV === 'production';
+
+// client/dist relative to repo root — works whether cwd is /app or /app/server
+// Prefer resolve() with __dirname for ESM reliability in Railway containers
+const CLIENT_DIST = resolve(__dirname, '../../client/dist');
 
 const app = express();
 const API = '/api/v1';
@@ -112,14 +116,18 @@ app.use(`${API}/packages`,               packagesRoutes);
 
 // ─── Static frontend (production only) ───────────────────────────────────────
 if (IS_PROD) {
-  const clientDist = join(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
+  app.use(express.static(CLIENT_DIST));
   // SPA fallback: serve index.html for all non-API routes
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path === '/health') {
       return res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
     }
-    res.sendFile(join(clientDist, 'index.html'));
+    res.sendFile(join(CLIENT_DIST, 'index.html'), (err) => {
+      if (err) {
+        console.error('[SPA] sendFile error:', err.message, '| dist:', CLIENT_DIST);
+        next(err);
+      }
+    });
   });
 } else {
   // ─── 404 (development) ──────────────────────────────────────────────────────
