@@ -29,6 +29,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# ── Uploaded files (must never go into client/public or repo root) ────────────
+client/public/*.pdf
+client/public/*.docx
+client/public/*.xlsx
+uploads/
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 /coverage
 /.pnp
