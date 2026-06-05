@@ -4,6 +4,7 @@ import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { rateLimit } from 'express-rate-limit';
@@ -114,10 +115,11 @@ app.use(`${API}/sessions`,               sessionsRoutes);
 app.use(`${API}/teacher`,                teacherRoutes);
 app.use(`${API}/packages`,               packagesRoutes);
 
-// ─── Static frontend (production only) ───────────────────────────────────────
-if (IS_PROD) {
+// ─── Static frontend (production, single-service mode only) ──────────────────
+// When deployed as backend-only (separate frontend service), client/dist won't
+// exist — we skip static serving automatically so only the API is exposed.
+if (IS_PROD && existsSync(join(CLIENT_DIST, 'index.html'))) {
   app.use(express.static(CLIENT_DIST));
-  // SPA fallback: serve index.html for all non-API routes
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path === '/health') {
       return res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
@@ -130,7 +132,6 @@ if (IS_PROD) {
     });
   });
 } else {
-  // ─── 404 (development) ──────────────────────────────────────────────────────
   app.use((req, res) => {
     res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
   });

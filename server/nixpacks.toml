@@ -1,0 +1,11 @@
+# Nixpacks config for BACKEND-ONLY Railway service
+# Root directory must be set to server/ in the Railway service settings.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[start]
+cmd = "node server.js"

@@ -1,0 +1,14 @@
+# Railway config for FRONTEND-ONLY deployment
+# Set this service's Root Directory to "client/" in Railway settings.
+# Set VITE_API_URL and VITE_SOCKET_URL variables to the backend service URL.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+
+[environments.production.variables]
+NODE_ENV = "production"
