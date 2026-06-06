@@ -1,13 +1,14 @@
 # Railway config for FRONTEND-ONLY service.
-# Used via railwayConfigFile setting — CWD is /app (repo root).
+# Deployed via: cd client && railway up --service frontend
+# CWD in container = /app (contents of client/ directory).
 # Set VITE_API_URL and VITE_SOCKET_URL in Railway Variables for this service.
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd client && npm ci && npm run build"
+buildCommand = "npm ci && npm run build"
 
 [deploy]
-startCommand = "cd client && npm start"
+startCommand = "npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 
