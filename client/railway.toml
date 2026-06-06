@@ -1,12 +1,13 @@
-# Railway config for FRONTEND-ONLY deployment
-# Set this service's Root Directory to "client/" in Railway settings.
-# Set VITE_API_URL and VITE_SOCKET_URL variables to the backend service URL.
+# Railway config for FRONTEND-ONLY service.
+# Used via railwayConfigFile setting — CWD is /app (repo root).
+# Set VITE_API_URL and VITE_SOCKET_URL in Railway Variables for this service.
 
 [build]
 builder = "NIXPACKS"
+buildCommand = "cd client && npm ci && npm run build"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "cd client && npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 

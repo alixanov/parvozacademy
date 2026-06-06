@@ -1,12 +1,13 @@
-# Railway config for BACKEND-ONLY deployment
-# (used when the server/ directory is set as the Railway service root)
-# For full monorepo deployment (frontend + backend), use root railway.toml instead.
+# Railway config for BACKEND-ONLY service.
+# Used via railwayConfigFile setting — CWD is /app (repo root).
+# For full monorepo single-service deploy, use root railway.toml instead.
 
 [build]
 builder = "NIXPACKS"
+buildCommand = "cd server && npm ci"
 
 [deploy]
-startCommand = "node server.js"
+startCommand = "node server/server.js"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/health"
