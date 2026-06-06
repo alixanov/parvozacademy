@@ -33,7 +33,8 @@ Thumbs.db
 client/public/*.pdf
 client/public/*.docx
 client/public/*.xlsx
-uploads/
+# Only ignore top-level uploads/ dir (user-uploaded files), NOT server/src/modules/uploads/
+/uploads/
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 /coverage
