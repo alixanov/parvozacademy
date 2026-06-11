@@ -57,6 +57,8 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URL
     ? process.env.CLIENT_URL.split(',').map((u) => u.trim())
     : []),
+  'https://www.parvoz-academy.uz',
+  'https://parvoz-academy.uz',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
