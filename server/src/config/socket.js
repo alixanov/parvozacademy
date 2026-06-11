@@ -8,14 +8,18 @@ export function initSocket(httpServer) {
   // In production the frontend is served from the same origin,
   // so no cross-origin WebSocket is needed.
   // In development allow all configured localhost ports + CLIENT_URL.
+  const prodOrigins = [
+    ...(process.env.CLIENT_URL
+      ? process.env.CLIENT_URL.split(',').map((u) => u.trim())
+      : []),
+    'https://www.parvoz-academy.uz',
+    'https://parvoz-academy.uz',
+  ].filter(Boolean);
+
   const corsOrigins = IS_PROD
-    ? (process.env.CLIENT_URL
-        ? process.env.CLIENT_URL.split(',').map((u) => u.trim())
-        : true)               // true = allow same origin
+    ? (prodOrigins.length ? prodOrigins : true)
     : [
-        ...(process.env.CLIENT_URL
-          ? process.env.CLIENT_URL.split(',').map((u) => u.trim())
-          : []),
+        ...prodOrigins,
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:5173',
