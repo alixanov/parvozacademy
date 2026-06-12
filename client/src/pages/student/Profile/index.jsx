@@ -76,6 +76,9 @@ export default function StudentProfile() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState('');
+  const [pwForm, setPwForm]   = useState({ current: '', next: '', repeat: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwSaved, setPwSaved] = useState(false);
 
   const change = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -106,6 +109,23 @@ export default function StudentProfile() {
     setEditing(false);
     setForm(initFromUser);
     setError('');
+    setPwForm({ current: '', next: '', repeat: '' });
+    setPwError('');
+  };
+
+  const handlePasswordSave = async () => {
+    setPwError('');
+    if (!pwForm.current) return setPwError(t('student.currentPassword') + ' kiritilmagan');
+    if (pwForm.next.length < 6) return setPwError('Yangi parol kamida 6 ta belgi');
+    if (pwForm.next !== pwForm.repeat) return setPwError('Parollar mos kelmadi');
+    try {
+      await updateMyProfile({ currentPassword: pwForm.current, password: pwForm.next }).unwrap();
+      setPwSaved(true);
+      setPwForm({ current: '', next: '', repeat: '' });
+      setTimeout(() => setPwSaved(false), 3000);
+    } catch (err) {
+      setPwError(err?.data?.message ?? "Parolni o'zgartirishda xatolik");
+    }
   };
 
   const initials = form.name.split(' ').map((w) => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '?';
@@ -355,20 +375,42 @@ export default function StudentProfile() {
                     <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
                       {t('student.changePassword')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                      {lang === 'ru' ? 'Смена пароля будет доступна в ближайшее время' : "Parolni o'zgartirish tez orada qo'shiladi"}
-                    </Typography>
+                    {pwError && (
+                      <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPwError('')}>{pwError}</Alert>
+                    )}
+                    {pwSaved && (
+                      <Alert severity="success" sx={{ mb: 2 }}>Parol muvaffaqiyatli o'zgartirildi</Alert>
+                    )}
                     <Grid container spacing={2.5}>
                       <Grid item xs={12} sm={4}>
-                        <TextField label={t('student.currentPassword')} fullWidth type="password" disabled />
+                        <TextField
+                          label={t('student.currentPassword')} fullWidth type="password"
+                          value={pwForm.current}
+                          onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))}
+                        />
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <TextField label={t('student.newPassword')} fullWidth type="password" disabled />
+                        <TextField
+                          label={t('student.newPassword')} fullWidth type="password"
+                          value={pwForm.next}
+                          onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))}
+                        />
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <TextField label={t('student.repeatPassword')} fullWidth type="password" disabled />
+                        <TextField
+                          label={t('student.repeatPassword')} fullWidth type="password"
+                          value={pwForm.repeat}
+                          onChange={(e) => setPwForm((p) => ({ ...p, repeat: e.target.value }))}
+                        />
                       </Grid>
                     </Grid>
+                    <Button
+                      variant="outlined" sx={{ mt: 2, borderRadius: 2 }}
+                      disabled={saving}
+                      onClick={handlePasswordSave}
+                    >
+                      {lang === 'ru' ? 'Сменить пароль' : "Parolni o'zgartirish"}
+                    </Button>
                   </Box>
                 )}
               </CardContent>

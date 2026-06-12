@@ -1,11 +1,10 @@
 # Railway config for FRONTEND-ONLY service.
 # Deployed via: cd client && railway up --service frontend
-# CWD in container = /app (contents of client/ directory).
+# Build phases handled by client/nixpacks.toml (no buildCommand override needed).
 # Set VITE_API_URL and VITE_SOCKET_URL in Railway Variables for this service.
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build"
 
 [deploy]
 startCommand = "npm start"

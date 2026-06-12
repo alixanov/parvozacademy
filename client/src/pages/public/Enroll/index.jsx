@@ -17,6 +17,9 @@ import { useSubmitApplicationMutation } from '../../../features/enrollment/enrol
 import { formatPrice } from '../../../data/mockData.js';
 import { baseApi }     from '../../../utils/api.js';
 import i18n from '../../../utils/i18n.js';
+import { useSelector }  from 'react-redux';
+import { selectUser }   from '../../../features/auth/authSlice.js';
+import LoginIcon        from '@mui/icons-material/Login';
 
 /* ─── constants ───────────────────────────────────────────────────────────── */
 const PALETTE = ['#1976D2','#EF4444','#7C3AED','#10B981','#F59E0B','#3B82F6','#EC4899','#06B6D4'];
@@ -102,7 +105,7 @@ function Step0Course({ selected, onSelect }) {
 }
 
 /* ─── Step 1: тариф + реквизиты ──────────────────────────────────────────── */
-function Step1Tariff({ course, selectedTariff, onSelect, settings }) {
+function Step1Tariff({ course, selectedTariff, onSelect, settings, currentUser }) {
   const [copied, setCopied] = useState('');
 
   const copyCard = (num) => {
@@ -156,8 +159,21 @@ function Step1Tariff({ course, selectedTariff, onSelect, settings }) {
         </Stack>
       </Box>
 
-      {/* Payment details (shown only after tariff is selected) */}
-      {selectedTariff && (
+      {/* If already logged in — show login redirect instead of payment details */}
+      {selectedTariff && currentUser && (
+        <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}
+          action={
+            <Button size="small" startIcon={<LoginIcon />} href="/login" variant="outlined" sx={{ borderRadius: 2, ml: 1 }}>
+              Kirish
+            </Button>
+          }
+        >
+          Siz allaqachon ro'yxatdan o'tgansiz. Iltimos, tizimga kiring va kursga yoziling.
+        </Alert>
+      )}
+
+      {/* Payment details (shown only after tariff is selected AND user is NOT logged in) */}
+      {selectedTariff && !currentUser && (
         <Box>
           <Divider sx={{ my: 1 }} />
           <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
@@ -233,6 +249,7 @@ function Step2Upload({ form, setForm, uploading, setUploading }) {
       fd.append('file', file);
       // Public endpoint — no auth header needed
       const res = await fetch('/api/v1/uploads/receipt', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`Yuklash xatosi: ${res.status} ${res.statusText}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? 'Upload failed');
       setForm((p) => ({ ...p, receiptUrl: json.data.url, receiptKey: json.data.key }));
@@ -357,6 +374,9 @@ function Step3Success({ application }) {
 
 /* ─── Main Enroll Page ────────────────────────────────────────────────────── */
 export default function EnrollPage() {
+  const currentUser = useSelector(selectUser);
+  const isAdminOrTeacher = currentUser?.role === 'admin' || currentUser?.role === 'teacher';
+
   const [step, setStep]       = useState(0);
   const [course, setCourse]   = useState(null);
   const [tariff, setTariff]   = useState(null);
@@ -413,6 +433,22 @@ export default function EnrollPage() {
     }
   };
 
+  /* Admin/teacher cannot purchase courses */
+  if (isAdminOrTeacher) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 10, px: 2 }}>
+        <Box sx={{ maxWidth: 480, mx: 'auto', textAlign: 'center' }}>
+          <Alert severity="warning" sx={{ borderRadius: 3, mb: 3 }}>
+            Administrator va o'qituvchilar kursga yozila olmaydi.
+          </Alert>
+          <Button variant="outlined" href={`/${currentUser.role}`} sx={{ borderRadius: 2 }}>
+            Kabinетga qaytish
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 6, px: 2 }}>
       <Box sx={{ maxWidth: 760, mx: 'auto' }}>
@@ -448,7 +484,7 @@ export default function EnrollPage() {
               <Step0Course selected={course} onSelect={(c) => { setCourse(c); setTariff(null); }} />
             )}
             {step === 1 && (
-              <Step1Tariff course={course} selectedTariff={tariff} onSelect={setTariff} settings={settings} />
+              <Step1Tariff course={course} selectedTariff={tariff} onSelect={setTariff} settings={settings} currentUser={currentUser} />
             )}
             {step === 2 && (
               <Step2Upload form={form} setForm={setForm} uploading={uploading} setUploading={setUploading} />

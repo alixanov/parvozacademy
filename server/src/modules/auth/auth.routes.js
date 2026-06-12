@@ -1,12 +1,22 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import { rateLimit } from 'express-rate-limit';
 import { validate } from '../../middleware/validate.middleware.js';
 import * as ctrl from './auth.controller.js';
 
 const router = Router();
 
+const authLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Ko\'p urinishlar. 15 daqiqadan so\'ng qayta urining.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.post(
   '/register',
+  authLimit,
   [
     body('name').trim().notEmpty().withMessage('Ism kiritilishi shart'),
     body('phone').trim().notEmpty().withMessage('Telefon raqam kiritilishi shart'),
@@ -19,6 +29,7 @@ router.post(
 
 router.post(
   '/login',
+  authLimit,
   [
     body('phone').trim().notEmpty().withMessage('Telefon raqam kiritilishi shart'),
     body('password').notEmpty().withMessage('Parol kiritilishi shart'),

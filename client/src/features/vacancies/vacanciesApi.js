@@ -37,6 +37,28 @@ export const vacanciesApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/vacancies/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Vacancy'],
     }),
+
+    // POST /vacancies/:id/apply  (public)
+    applyToVacancy: b.mutation({
+      query: ({ id, ...body }) => ({ url: `/vacancies/${id}/apply`, method: 'POST', body }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Vacancy', id }],
+    }),
+
+    // GET /vacancies/:id/applications  (admin)
+    getVacancyApplications: b.query({
+      query: (id) => `/vacancies/${id}/applications`,
+      providesTags: (_r, _e, id) => [{ type: 'Vacancy', id }],
+    }),
+
+    // PATCH /vacancies/:id/applications/:appId  (admin)
+    updateApplicationStatus: b.mutation({
+      query: ({ vacancyId, appId, status }) => ({
+        url: `/vacancies/${vacancyId}/applications/${appId}`,
+        method: 'PATCH',
+        body: { status },
+      }),
+      invalidatesTags: (_r, _e, { vacancyId }) => [{ type: 'Vacancy', id: vacancyId }],
+    }),
   }),
 });
 
@@ -46,4 +68,7 @@ export const {
   useCreateVacancyMutation,
   useUpdateVacancyMutation,
   useDeleteVacancyMutation,
+  useApplyToVacancyMutation,
+  useGetVacancyApplicationsQuery,
+  useUpdateApplicationStatusMutation,
 } = vacanciesApi;

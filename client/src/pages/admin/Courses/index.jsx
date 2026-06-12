@@ -260,6 +260,7 @@ function CourseDialog({ open, initial, onClose, onSave, loading, apiError, teach
               label="Davomiylik (oy) *" fullWidth size="small" type="number"
               inputProps={{ min: 1, max: 24 }}
               value={form.duration} onChange={set('duration')}
+              helperText={`≈ ${Math.round(Number(form.duration) * 15)} ta dars (oyiga 15)`}
             />
           </Grid>
 

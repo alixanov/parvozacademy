@@ -67,7 +67,7 @@ export default function TeacherSchedule() {
           const entry = (g.schedule ?? []).find((s) => s.dayOfWeek === dow);
           if (!entry) return [];
           return [{
-            id:       `${g._id}-${day}`,
+            id:        `${g._id}-${day}`,
             startTime: entry.startTime ?? '—',
             endTime:   entry.endTime   ?? '—',
             course:    courseTitle(g.course),
@@ -75,6 +75,7 @@ export default function TeacherSchedule() {
             type:      g.type ?? 'offline',
             students:  g.maxStudents ?? 0,
             color:     COURSE_COLORS[gIdx % COURSE_COLORS.length],
+            isActive:  g.isActive ?? true,
             days:      (g.schedule ?? [])
               .map((s) => DOW_TO_DAY[s.dayOfWeek] ?? '?')
               .sort((a, b) => (DAY_TO_DOW[a] ?? 0) - (DAY_TO_DOW[b] ?? 0)),
@@ -181,15 +182,24 @@ export default function TeacherSchedule() {
                                 {l.startTime}–{l.endTime}
                               </Typography>
                             </Stack>
-                            <Chip
-                              icon={l.type === 'online'
-                                ? <VideocamIcon sx={{ fontSize: '10px !important' }} />
-                                : <MeetingRoomIcon sx={{ fontSize: '10px !important' }} />}
-                              label={l.type === 'online' ? t('scheduleLabels.online') : 'Offline'}
-                              size="small"
-                              color={l.type === 'online' ? 'success' : 'default'}
-                              sx={{ height: 18, fontSize: '0.7rem' }}
-                            />
+                            <Stack direction="row" spacing={0.4}>
+                              {!l.isActive && (
+                                <Chip
+                                  label={t('schedule.notStarted', { defaultValue: 'Boshlanmagan' })}
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 700 }}
+                                />
+                              )}
+                              <Chip
+                                icon={l.type === 'online'
+                                  ? <VideocamIcon sx={{ fontSize: '10px !important' }} />
+                                  : <MeetingRoomIcon sx={{ fontSize: '10px !important' }} />}
+                                label={l.type === 'online' ? t('scheduleLabels.online') : 'Offline'}
+                                size="small"
+                                color={l.type === 'online' ? 'success' : 'default'}
+                                sx={{ height: 18, fontSize: '0.7rem' }}
+                              />
+                            </Stack>
                           </Stack>
                           <Typography variant="body2" fontWeight={600} sx={{ color: l.color, lineHeight: 1.3, mb: 0.3 }}>
                             {l.group}

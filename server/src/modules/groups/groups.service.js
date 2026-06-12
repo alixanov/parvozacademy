@@ -335,7 +335,7 @@ export async function getMembersWithPaymentStatus(groupId) {
       if (p.status !== 'debt' && p.status !== 'partial') return false;
       const graceDeadline = new Date(p.dueDate);
       graceDeadline.setDate(graceDeadline.getDate() + GRACE_DAYS);
-      return graceDeadline <= now;
+      return graceDeadline.getTime() <= now.getTime();
     });
 
     // In grace period = dueDate passed but grace deadline hasn't expired yet
@@ -343,7 +343,7 @@ export async function getMembersWithPaymentStatus(groupId) {
       if (p.status !== 'debt' && p.status !== 'partial') return false;
       const graceDeadline = new Date(p.dueDate);
       graceDeadline.setDate(graceDeadline.getDate() + GRACE_DAYS);
-      return new Date(p.dueDate) <= now && graceDeadline > now;
+      return new Date(p.dueDate).getTime() <= now.getTime() && graceDeadline.getTime() > now.getTime();
     });
 
     // Started but unpaid = periodStart passed, dueDate not yet passed
@@ -376,9 +376,9 @@ export async function getMembersWithPaymentStatus(groupId) {
       ? (neverPaid && !hasOverdue ? 'never_paid' : 'overdue')
       : null;
 
-    // Persist paymentBlocked change if needed (async, fire-and-forget)
+    // Persist paymentBlocked change if needed
     if (member.paymentBlocked !== shouldBlock) {
-      GroupMember.findByIdAndUpdate(member._id, { paymentBlocked: shouldBlock }).exec();
+      await GroupMember.findByIdAndUpdate(member._id, { paymentBlocked: shouldBlock }).exec();
     }
 
     const paidMonths  = paidList.length;

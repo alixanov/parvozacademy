@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { verifyAccess } from '../utils/jwt.utils.js';
 
 let io;
 
@@ -29,10 +30,20 @@ export function initSocket(httpServer) {
     cors: { origin: corsOrigins, credentials: true },
   });
 
-  io.on('connection', (socket) => {
-    const { userId } = socket.handshake.auth;
-    if (userId) socket.join(`user:${userId}`);
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('Authentication required'));
+    try {
+      const payload = verifyAccess(token);
+      socket.userId = payload.id ?? payload._id ?? payload.sub;
+      next();
+    } catch {
+      next(new Error('Invalid token'));
+    }
+  });
 
+  io.on('connection', (socket) => {
+    if (socket.userId) socket.join(`user:${socket.userId}`);
     socket.on('disconnect', () => {});
   });
 

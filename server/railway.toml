@@ -1,10 +1,9 @@
 # Railway config for BACKEND-ONLY service.
 # Deployed via: cd server && railway up --service backend
-# CWD in container = /app (contents of server/ directory).
+# Build phases handled by server/nixpacks.toml (no buildCommand override needed).
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci"
 
 [deploy]
 startCommand = "node server.js"

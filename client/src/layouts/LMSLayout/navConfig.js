@@ -21,6 +21,7 @@ import LocalOfferIcon          from '@mui/icons-material/LocalOffer';
 import OndemandVideoIcon       from '@mui/icons-material/OndemandVideo';
 import InventoryIcon           from '@mui/icons-material/Inventory';
 import ArchiveIcon             from '@mui/icons-material/Archive';
+import WorkIcon               from '@mui/icons-material/Work';
 
 export const studentNav = [
   { key: 'student.dashboard',     path: '/student/dashboard',     Icon: DashboardIcon },
@@ -57,6 +58,7 @@ export const adminNav = [
   { key: 'admin.payments',       path: '/admin/payments',         Icon: PaymentsIcon,        section: 'nav.section.finance' },
   { key: 'admin.notifications',  path: '/admin/notifications',    Icon: NotificationsActiveIcon },
   { key: 'admin.reviews',        path: '/admin/reviews',          Icon: ReviewsIcon },
+  { key: 'admin.vacancies',      path: '/admin/vacancies',        Icon: WorkIcon },
   { key: 'admin.content',        path: '/admin/content',          Icon: ArticleIcon },
   { key: 'admin.settings',       path: '/admin/settings',         Icon: SettingsIcon },
 ];

@@ -24,7 +24,7 @@ export default function StudentCourses() {
   const { t }       = useTranslation();
   const lang        = i18n.language === 'ru' ? 'ru' : 'uz';
 
-  /* All available courses */
+  /* All available courses (fetched for cross-reference, but we'll only show enrolled) */
   const { data: allCoursesRes, isLoading: coursesLoading } = useGetCoursesQuery({ limit: 100 });
   const allCourses = allCoursesRes?.data ?? allCoursesRes ?? [];
 
@@ -88,22 +88,23 @@ export default function StudentCourses() {
         </Box>
       )}
 
-      {!isLoading && allCourses.length === 0 && (
+      {/* Only show courses the student is enrolled in */}
+      {!isLoading && enrolledCourseIds.size === 0 && (
         <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', py: 8, textAlign: 'center' }}>
           <MenuBookIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" color="text.secondary">{t('student.notInGroup')}</Typography>
         </Card>
       )}
 
-      {!isLoading && allCourses.length > 0 && (
+      {!isLoading && enrolledCourseIds.size > 0 && (
         <Grid container spacing={3}>
-          {allCourses.map((c, idx) => {
+          {allCourses.filter((c) => enrolledCourseIds.has(String(c._id))).map((c, idx) => {
             const color      = PALETTE[idx % PALETTE.length];
             const title      = getTitle(c);
             const desc       = getDesc(c);
-            const isEnrolled = enrolledCourseIds.has(String(c._id));
+            const isEnrolled = true;
             const group      = courseGroupMap[String(c._id)];
-            const teacherName = (isEnrolled ? group?.teacher?.name : c.teacher?.name) ?? '—';
+            const teacherName = group?.teacher?.name ?? c.teacher?.name ?? '—';
 
             return (
               <Grid item xs={12} sm={6} md={4} key={c._id ?? idx}>

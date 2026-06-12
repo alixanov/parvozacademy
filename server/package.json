@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "seed:vacancies": "node src/scripts/seedVacancies.js"
   },
   "engines": {
     "node": ">=20.0.0"

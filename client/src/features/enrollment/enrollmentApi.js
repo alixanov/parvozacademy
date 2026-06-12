@@ -29,7 +29,7 @@ export const enrollmentApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body:   groupId ? { groupId } : {},
       }),
-      invalidatesTags: ['Enrollment', 'Group', 'GroupMember', 'Payment'],
+      invalidatesTags: ['Enrollment', 'Group', 'GroupMember', 'Payment', 'User', 'Course'],
     }),
 
     // PATCH /enrollment-applications/:id/reject  (admin)

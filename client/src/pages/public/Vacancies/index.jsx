@@ -3,7 +3,7 @@ import {
   Box, Container, Grid, Typography, Card, CardContent,
   Chip, Button, Stack, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, List, ListItem, ListItemIcon,
-  ListItemText, IconButton, InputAdornment, useTheme, CircularProgress,
+  ListItemText, IconButton, InputAdornment, useTheme, CircularProgress, Alert,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkIcon              from '@mui/icons-material/Work';
@@ -24,11 +24,12 @@ import ComputerIcon          from '@mui/icons-material/Computer';
 import CampaignIcon          from '@mui/icons-material/Campaign';
 import PhoneIcon             from '@mui/icons-material/Phone';
 import PersonIcon            from '@mui/icons-material/Person';
+import EmailIcon             from '@mui/icons-material/Email';
 import { formatPrice } from '../../../data/mockData.js';
 import PageBanner from '../../../components/ui/PageBanner.jsx';
 import i18n from '../../../utils/i18n.js';
 import { useTranslation } from 'react-i18next';
-import { useGetVacanciesQuery } from '../../../features/vacancies/vacanciesApi.js';
+import { useGetVacanciesQuery, useApplyToVacancyMutation } from '../../../features/vacancies/vacanciesApi.js';
 
 /* ── Animation presets ─────────────────────────────────────────── */
 const fadeUp = {
@@ -68,7 +69,7 @@ const BENEFITS = [
 ];
 
 const LETTER_MAX = 500;
-const emptyForm  = { name: '', phone: '', letter: '', fileName: '' };
+const emptyForm  = { name: '', phone: '', email: '', letter: '', fileName: '', resumeUrl: '' };
 
 /* ── VacancyCard component ─────────────────────────────────────── */
 function VacancyCard({ vacancy, t, lang, onApply }) {
@@ -247,6 +248,8 @@ export default function Vacancies() {
 
   const { data, isLoading } = useGetVacanciesQuery({ limit: 100 });
   const vacancies = data?.data ?? [];
+  const [applyToVacancy, { isLoading: isApplying }] = useApplyToVacancyMutation();
+  const [applyError, setApplyError] = useState('');
 
   const activeCount = vacancies.filter((v) => v.isActive).length;
 
@@ -268,6 +271,7 @@ export default function Vacancies() {
     setForm(emptyForm);
     setErrors({});
     setSubmitted(false);
+    setApplyError('');
   };
 
   const handleChange = (field) => (ev) => {
@@ -282,18 +286,50 @@ export default function Vacancies() {
     const e = {};
     if (!form.name.trim())  e.name  = true;
     if (form.phone.length !== 9) e.phone = true;
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = true;
+    if (!form.resumeUrl) e.resumeUrl = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (ev) => {
+  const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!validate()) return;
-    setSubmitted(true);
+    setApplyError('');
+    try {
+      await applyToVacancy({
+        id:          selected._id ?? selected.id,
+        name:        form.name,
+        email:       form.email,
+        phone:       `+998${form.phone}`,
+        resumeUrl:   form.resumeUrl,
+        coverLetter: form.letter,
+      }).unwrap();
+      setSubmitted(true);
+    } catch (err) {
+      setApplyError(err?.data?.message ?? (lang === 'ru' ? 'Xato yuz berdi' : 'Xato yuz berdi'));
+    }
   };
 
-  const handleFile = (e) => {
-    if (e.target.files[0]) setForm((f) => ({ ...f, fileName: e.target.files[0].name }));
+  const [fileUploading, setFileUploading] = useState(false);
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/v1/uploads/receipt', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? 'Upload failed');
+      setForm((f) => ({ ...f, fileName: file.name, resumeUrl: json.data.url }));
+      if (errors.resumeUrl) setErrors((e) => ({ ...e, resumeUrl: false }));
+    } catch {
+      setApplyError(lang === 'ru' ? 'Файл загрузить не удалось' : 'Faylni yuklashda xato');
+    } finally {
+      setFileUploading(false);
+    }
   };
 
   const handleApply = (vacancy) => {
@@ -702,6 +738,10 @@ export default function Vacancies() {
               >
                 <Box component="form" id="apply-form" onSubmit={handleSubmit}>
                   <Stack spacing={2.5} sx={{ py: 3 }}>
+                    {applyError && (
+                      <Alert severity="error" sx={{ borderRadius: 2 }}>{applyError}</Alert>
+                    )}
+
                     {/* Name */}
                     <TextField
                       label={t('page.vacancies.fullName')}
@@ -714,6 +754,25 @@ export default function Vacancies() {
                         startAdornment: (
                           <InputAdornment position="start">
                             <PersonIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+
+                    {/* Email */}
+                    <TextField
+                      label="Email *"
+                      fullWidth required
+                      type="email"
+                      value={form.email}
+                      onChange={handleChange('email')}
+                      error={!!errors.email}
+                      helperText={errors.email ? (lang === 'ru' ? 'Укажите корректный email' : 'To\'g\'ri email kiriting') : ''}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <EmailIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
                           </InputAdornment>
                         ),
                       }}
@@ -781,41 +840,47 @@ export default function Vacancies() {
                         display: 'flex', alignItems: 'center', gap: 1.5,
                         p: 2, borderRadius: 2,
                         border: '1.5px dashed',
-                        borderColor: form.fileName ? 'success.main' : 'divider',
-                        bgcolor: form.fileName ? '#10B98108' : 'transparent',
-                        cursor: 'pointer',
+                        borderColor: errors.resumeUrl ? 'error.main' : form.resumeUrl ? 'success.main' : 'divider',
+                        bgcolor: form.resumeUrl ? '#10B98108' : 'transparent',
+                        cursor: fileUploading ? 'wait' : 'pointer',
                         transition: 'all 0.2s',
                         '&:hover': {
-                          borderColor: form.fileName ? 'success.main' : 'primary.main',
-                          bgcolor: form.fileName ? '#10B98110' : 'primary.main' + '06',
+                          borderColor: form.resumeUrl ? 'success.main' : 'primary.main',
+                          bgcolor: form.resumeUrl ? '#10B98110' : 'primary.main' + '06',
                         },
                       }}
                     >
                       <Box sx={{
                         width: 36, height: 36, borderRadius: '9px',
-                        bgcolor: form.fileName ? '#10B98114' : 'action.hover',
+                        bgcolor: form.resumeUrl ? '#10B98114' : 'action.hover',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         flexShrink: 0,
                       }}>
-                        {form.fileName
-                          ? <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
-                          : <AttachFileIcon  sx={{ fontSize: 18, color: 'text.secondary' }} />}
+                        {fileUploading
+                          ? <CircularProgress size={18} />
+                          : form.resumeUrl
+                            ? <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                            : <AttachFileIcon  sx={{ fontSize: 18, color: errors.resumeUrl ? 'error.main' : 'text.secondary' }} />}
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography
                           variant="body2" fontWeight={600}
-                          color={form.fileName ? 'success.main' : 'text.secondary'}
+                          color={form.resumeUrl ? 'success.main' : errors.resumeUrl ? 'error.main' : 'text.secondary'}
                           noWrap
                         >
-                          {form.fileName || t('page.vacancies.uploadCV')}
+                          {fileUploading
+                            ? (lang === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...')
+                            : form.fileName || t('page.vacancies.uploadCV')}
                         </Typography>
-                        {!form.fileName && (
-                          <Typography variant="caption" color="text.disabled">
-                            PDF, DOC, DOCX
+                        {!form.resumeUrl && !fileUploading && (
+                          <Typography variant="caption" color={errors.resumeUrl ? 'error.main' : 'text.disabled'}>
+                            {errors.resumeUrl
+                              ? (lang === 'ru' ? 'Обязательно' : 'Majburiy')
+                              : 'PDF, DOC, DOCX'}
                           </Typography>
                         )}
                       </Box>
-                      <input type="file" accept=".pdf,.doc,.docx" hidden onChange={handleFile} />
+                      <input type="file" accept=".pdf,.doc,.docx" hidden onChange={handleFile} disabled={fileUploading} />
                     </Box>
                   </Stack>
                 </Box>
@@ -836,6 +901,7 @@ export default function Vacancies() {
             <Button
               type="submit" form="apply-form"
               variant="contained"
+              disabled={isApplying || fileUploading}
               sx={{
                 borderRadius: 2.5, px: 3.5, fontWeight: 700,
                 bgcolor: TYPE_COLOR[selected?.type] ?? '#6D28D9',
@@ -843,7 +909,7 @@ export default function Vacancies() {
                   bgcolor: (TYPE_COLOR[selected?.type] ?? '#6D28D9') + 'DD',
                 },
               }}
-              startIcon={<SendIcon />}
+              startIcon={isApplying ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
             >
               {t('page.vacancies.submit')}
             </Button>

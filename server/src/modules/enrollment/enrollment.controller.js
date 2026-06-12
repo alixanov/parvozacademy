@@ -12,7 +12,8 @@ export const submit = async (req, res, next) => {
       amount:     req.body.amount,
       receiptUrl: req.body.receiptUrl,
       receiptKey: req.body.receiptKey ?? '',
-      student:    req.body.student   ?? null, // optional: already-logged-in user
+      // If authenticated, always use the real user id — never trust body
+      student:    req.user?._id ?? null,
     });
     created(res, app, 'Arizangiz qabul qilindi. Tez orada javob beramiz.');
   } catch (e) { next(e); }

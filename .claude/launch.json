@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "parvoz-backend",
+      "runtimeExecutable": "railway",
+      "runtimeArgs": ["run", "--service", "backend", "--", "node", "--watch", "server/server.js"],
+      "port": 5000
+    },
+    {
       "name": "parvoz-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "client", "run", "dev"],

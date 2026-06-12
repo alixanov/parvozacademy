@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema(
     email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
     phone: { type: String, required: true, trim: true },
     password:      { type: String, required: true, select: false },
-    passwordPlain: { type: String, default: '' },   // plain-text copy (for admin view)
     role: {
       type: String,
       enum: ['admin', 'teacher', 'student'],

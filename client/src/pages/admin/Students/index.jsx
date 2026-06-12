@@ -424,8 +424,8 @@ export default function AdminStudents() {
           <Table sx={{ minWidth:650 }}>
             <TableHead>
               <TableRow>
-                {[t('form.student'), t('form.phone'), t('students.joined'), t('status.active'), t('common.actions')].map((h, i) => (
-                  <TableCell key={h} align={i === 3 ? 'center' : i === 4 ? 'right' : 'left'}
+                {[t('form.student'), t('form.phone'), t('students.joined'), t('common.actions')].map((h, i) => (
+                  <TableCell key={h} align={i === 3 ? 'right' : 'left'}
                     sx={{ py: 1, px: 1.75, fontSize: '0.66rem', fontWeight: 600, color: 'text.disabled',
                       letterSpacing: '0.07em', textTransform: 'uppercase',
                       borderBottom: '1px solid', borderColor: 'divider',
@@ -470,30 +470,6 @@ export default function AdminStudents() {
                   </TableCell>
                   <TableCell sx={{ py: 1.25, px: 1.75 }}>
                     <DateBadge iso={s.createdAt} />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title={s.isActive ? 'Faolsizlantirish' : 'Faollashtirish'}>
-                      <Box onClick={() => setActive({ id: s._id, isActive: !s.isActive })}
-                        sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0.4, cursor: 'pointer' }}>
-                        <Box sx={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          bgcolor: s.isActive ? '#10B981' : '#EF4444',
-                          boxShadow: s.isActive
-                            ? '0 0 0 3px #10B98128, 0 2px 8px #10B98150'
-                            : '0 0 0 3px #EF444428, 0 2px 8px #EF444450',
-                          transition: 'all .2s',
-                          '&:hover': { transform: 'scale(1.1)', filter: 'brightness(1.1)' },
-                          '&:active': { transform: 'scale(0.92)' },
-                        }}>
-                          <PowerSettingsNewIcon sx={{ fontSize: 15, color: '#fff' }} />
-                        </Box>
-                        <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, lineHeight: 1,
-                          color: s.isActive ? '#10B981' : '#EF4444' }}>
-                          {s.isActive ? 'Faol' : 'Noaktiv'}
-                        </Typography>
-                      </Box>
-                    </Tooltip>
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">

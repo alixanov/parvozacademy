@@ -124,8 +124,8 @@ function ModuleDialog({ open, onClose, pkgId, existingModule, moduleIdx, onSaved
   const isEdit = existingModule != null;
 
   const blankQuiz = () => ({ question: '', options: ['', '', '', ''], correct: 0 });
-  const blank = { titleUz: '', titleRu: '', description: '',
-    fileUrl: '', fileName: '', fileType: 'pdf', videoUrl: '', quiz: [] };
+  const blank = { titleUz: '', titleRu: '', descriptionUz: '', descriptionRu: '',
+    fileUrl: '', fileName: '', fileType: 'pdf', fileUploading: false, videoUrl: '', quiz: [] };
 
   const [form, setForm] = useState(blank);
   const [err, setErr]   = useState('');
@@ -134,13 +134,15 @@ function ModuleDialog({ open, onClose, pkgId, existingModule, moduleIdx, onSaved
     if (open) {
       if (isEdit && existingModule) {
         setForm({
-          titleUz:     existingModule.title?.uz  ?? (typeof existingModule.title === 'string' ? existingModule.title : ''),
-          titleRu:     existingModule.title?.ru  ?? '',
-          description: existingModule.description ?? '',
-          fileUrl:     existingModule.file?.url  ?? '',
-          fileName:    existingModule.file?.name ?? '',
-          fileType:    existingModule.file?.type ?? 'pdf',
-          videoUrl:    existingModule.videoUrl ?? '',
+          titleUz:       existingModule.title?.uz  ?? (typeof existingModule.title === 'string' ? existingModule.title : ''),
+          titleRu:       existingModule.title?.ru  ?? '',
+          descriptionUz: existingModule.description?.uz ?? (typeof existingModule.description === 'string' ? existingModule.description : ''),
+          descriptionRu: existingModule.description?.ru ?? '',
+          fileUrl:       existingModule.file?.url  ?? '',
+          fileName:      existingModule.file?.name ?? '',
+          fileType:      existingModule.file?.type ?? 'pdf',
+          fileUploading: false,
+          videoUrl:      existingModule.videoUrl ?? '',
           quiz:        (existingModule.quiz ?? []).map(q => ({
             question: q.question ?? '',
             options:  q.options?.length === 4 ? [...q.options] : ['', '', '', ''],
@@ -189,7 +191,7 @@ function ModuleDialog({ open, onClose, pkgId, existingModule, moduleIdx, onSaved
     if (!form.titleUz.trim()) { setErr('Modul nomi (O\'zbek) majburiy'); return; }
     const payload = {
       title:       { uz: form.titleUz.trim(), ru: form.titleRu.trim() },
-      description: form.description.trim(),
+      description: { uz: form.descriptionUz.trim(), ru: form.descriptionRu.trim() },
       file: {
         url:  form.fileUrl.trim(),
         name: form.fileName.trim() || form.fileUrl.trim().split('/').pop() || 'fayl',
@@ -242,23 +244,65 @@ function ModuleDialog({ open, onClose, pkgId, existingModule, moduleIdx, onSaved
             sx={inputSx} />
         </Stack>
 
-        {/* Description */}
+        {/* Description bilingual */}
         <Label>Tavsif</Label>
-        <TextField size="small" label="Modul haqida" fullWidth multiline rows={3} value={form.description} onChange={handle('description')}
-          sx={{ ...inputSx, mb: 2.25 }} />
+        <Stack spacing={1.25} mb={2.25}>
+          <TextField size="small" label="Tavsif (O'zbek)" fullWidth multiline rows={2}
+            value={form.descriptionUz} onChange={handle('descriptionUz')} sx={inputSx} />
+          <TextField size="small" label="Описание (Русский)" fullWidth multiline rows={2}
+            value={form.descriptionRu} onChange={handle('descriptionRu')} sx={inputSx} />
+        </Stack>
 
-        {/* File */}
+        {/* File — upload or URL */}
         <Label icon={<AttachFileIcon sx={{ fontSize: 14 }} />}>Fayl (PDF / Word / PPTX)</Label>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} mb={2.25}>
-          <TextField size="small" label="Fayl URL" fullWidth value={form.fileUrl} onChange={handle('fileUrl')}
-            placeholder="https://drive.google.com/... yoki https://..."
-            sx={inputSx}
-            InputProps={{ startAdornment: <AttachFileIcon sx={{ mr: 0.5, fontSize: 14, color: '#CBD5E1' }} /> }}
-          />
-          <TextField select size="small" label="Tur" sx={{ minWidth: 100, ...inputSx }}
-            value={form.fileType} onChange={handle('fileType')}>
-            {FILE_TYPES.map((f) => <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>)}
-          </TextField>
+        <Stack spacing={1.25} mb={2.25}>
+          {/* Upload button */}
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Button
+              size="small" variant="outlined" component="label"
+              startIcon={form.fileUploading ? <CircularProgress size={13} /> : <AttachFileIcon sx={{ fontSize: 14 }} />}
+              disabled={form.fileUploading}
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.78rem', height: 34, flexShrink: 0 }}
+            >
+              {form.fileUploading ? 'Yuklanmoqda...' : 'Fayl yuklash'}
+              <input type="file" hidden accept=".pdf,.doc,.docx,.pptx,.xlsx,.zip"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setForm((p) => ({ ...p, fileUploading: true }));
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await fetch('/api/v1/uploads/receipt', { method: 'POST', body: fd });
+                    const json = await res.json();
+                    if (json.success) {
+                      setForm((p) => ({ ...p, fileUrl: json.data.url, fileName: file.name, fileUploading: false }));
+                    } else throw new Error(json.message);
+                  } catch (uploadErr) {
+                    setErr(uploadErr.message ?? 'Fayl yuklanmadi');
+                    setForm((p) => ({ ...p, fileUploading: false }));
+                  }
+                }}
+              />
+            </Button>
+            {form.fileUrl && (
+              <Typography variant="caption" color="success.main" noWrap sx={{ flex: 1 }}>
+                ✓ {form.fileName || form.fileUrl.split('/').pop()}
+              </Typography>
+            )}
+          </Stack>
+          {/* Or URL */}
+          <Stack direction="row" spacing={1.25}>
+            <TextField size="small" label="yoki Fayl URL (havolasi)" fullWidth value={form.fileUrl} onChange={handle('fileUrl')}
+              placeholder="https://drive.google.com/..."
+              sx={inputSx}
+              InputProps={{ startAdornment: <LinkIcon sx={{ mr: 0.5, fontSize: 14, color: '#CBD5E1' }} /> }}
+            />
+            <TextField select size="small" label="Tur" sx={{ minWidth: 100, ...inputSx }}
+              value={form.fileType} onChange={handle('fileType')}>
+              {FILE_TYPES.map((f) => <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>)}
+            </TextField>
+          </Stack>
         </Stack>
 
         {/* Video */}

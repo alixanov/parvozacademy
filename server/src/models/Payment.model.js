@@ -11,8 +11,9 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       // debt    → to'lanmagan (default)
       // pending → chek yuklangan, admin tasdig'ini kutmoqda
-      // paid    → admin tasdiqlaganf, to'lov qabul qilindi
-      enum: ['debt', 'pending', 'paid'],
+      // paid    → admin tasdiqlagan, to'lov qabul qilindi
+      // partial → qisman to'langan
+      enum: ['debt', 'pending', 'paid', 'partial'],
       default: 'debt',
     },
     paymentMethod: {

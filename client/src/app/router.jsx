@@ -77,6 +77,7 @@ const AdminPackages        = lazyPage(() => import('../pages/admin/Packages/inde
 const AdminReviews         = lazyPage(() => import('../pages/admin/Reviews/index.jsx'));
 const AdminContent         = lazyPage(() => import('../pages/admin/Content/index.jsx'));
 const AdminTests           = lazyPage(() => import('../pages/admin/Tests/index.jsx'));
+const AdminVacancies       = lazyPage(() => import('../pages/admin/Vacancies/index.jsx'));
 // AdminEnrollments merged into AdminPayments
 
 // NotFound
@@ -166,6 +167,7 @@ const router = createBrowserRouter([
       { path: 'enrollments',   element: <Navigate to="/admin/payments" replace /> },
       { path: 'notifications', element: <AdminNotifications />,    handle: crumb('admin.notifications') },
       { path: 'reviews',       element: <AdminReviews />,          handle: crumb('admin.reviews') },
+      { path: 'vacancies',     element: <AdminVacancies />,        handle: crumb('admin.vacancies') },
       { path: 'content',       element: <AdminContent />,          handle: crumb('admin.content') },
       { path: 'tests',         element: <AdminTests />,            handle: crumb('admin.tests') },
       { path: 'settings',      element: <AdminSettings />,         handle: crumb('admin.settings') },

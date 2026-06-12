@@ -307,7 +307,9 @@ export default function StudentHomework() {
   const [groupIdx, setGroupIdx] = useState(0);
 
   const { data: groupsRes, isLoading: groupsLoading } = useGetMyGroupsQuery();
-  const myGroups = groupsRes?.data ?? groupsRes ?? [];
+  const myGroups = (groupsRes?.data ?? groupsRes ?? []).filter(
+    (g) => g.type !== 'individual_package' && g.type !== 'individual_offline' && g.type !== 'individual_online',
+  );
 
   const selectedGroup = myGroups[groupIdx];
 

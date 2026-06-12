@@ -362,8 +362,7 @@ export async function grantAccess(packageId, studentId, grantedById, { paymentAm
       await existingMember.save();
     }
   } catch (groupErr) {
-    // Group creation must not block access grant
-    console.error('[grantAccess] group auto-create failed:', groupErr.message);
+    throw new AppError(`Guruh yaratishda xato: ${groupErr.message}`, 500);
   }
 
   // ── Notify student ────────────────────────────────────────────────────────

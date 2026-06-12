@@ -17,12 +17,14 @@ import PeopleIcon        from '@mui/icons-material/People';
 import SchoolIcon        from '@mui/icons-material/School';
 import GroupsIcon        from '@mui/icons-material/Groups';
 import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
+import WorkIcon          from '@mui/icons-material/Work';
 import { formatPrice }   from '../../../data/mockData.js';
 import { DateBadge }    from '../../../components/common/DateBadge/index.jsx';
 import PageHeader        from '../../../components/common/PageHeader/index.jsx';
 import { useGetCoursesQuery }        from '../../../features/courses/coursesApi.js';
 import { useGetUsersQuery }          from '../../../features/users/usersApi.js';
 import { useGetAdminDashboardQuery } from '../../../features/dashboard/dashboardApi.js';
+import { useGetVacanciesQuery }      from '../../../features/vacancies/vacanciesApi.js';
 import i18n from '../../../utils/i18n.js';
 
 const COURSE_COLORS  = ['#1976D2','#EF4444','#7C3AED','#10B981','#F59E0B'];
@@ -58,13 +60,15 @@ export default function AdminDashboard() {
 
   /* ── API data ─────────────────────────────────────────────── */
   const { data: dashRes, isLoading: loadingDash } = useGetAdminDashboardQuery();
-  const { data: coursesRes }  = useGetCoursesQuery({ limit: 5 });
-  const { data: studentsRes } = useGetUsersQuery({ role: 'student', limit: 5 });
+  const { data: coursesRes }   = useGetCoursesQuery({ limit: 5 });
+  const { data: studentsRes }  = useGetUsersQuery({ role: 'student', limit: 5 });
+  const { data: vacanciesRes } = useGetVacanciesQuery({ activeOnly: false, limit: 50 });
 
   const dashData       = dashRes?.data ?? {};
   const totals         = dashData.totals    ?? {};
   const finance        = dashData.finance   ?? {};
   const recentPayments = dashData.recentPayments ?? [];
+  const activeVacancies = (vacanciesRes?.data ?? []).filter((v) => v.isActive);
 
   const topCourses     = (coursesRes?.data  ?? []).slice(0, 5);
   const recentStudents = (studentsRes?.data ?? []).slice(0, 5);
@@ -242,7 +246,7 @@ export default function AdminDashboard() {
           </Card>
 
           {/* Recent payments */}
-          <Card>
+          <Card sx={{ mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               <SectionHeader icon={<CreditCardIcon />} title={t('dashboard.recentPayments')}
                 action={t('common.seeAll')} onAction={() => navigate('/admin/payments')} />
@@ -278,6 +282,42 @@ export default function AdminDashboard() {
               </Stack>
             </CardContent>
           </Card>
+
+          {/* Active vacancies */}
+          {activeVacancies.length > 0 && (
+            <Card>
+              <CardContent sx={{ p: 3 }}>
+                <SectionHeader
+                  icon={<WorkIcon />}
+                  title="Faol vakansiyalar"
+                  action="Barchasi"
+                  onAction={() => navigate('/admin/vacancies')}
+                />
+                <Stack spacing={1.5}>
+                  {activeVacancies.slice(0, 5).map((v) => {
+                    const appCount = v.applications?.length ?? 0;
+                    return (
+                      <Stack key={v._id} direction="row" justifyContent="space-between" alignItems="center"
+                        sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={700} noWrap>{v.title}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {v.salary?.min ? `${(v.salary.min / 1_000_000).toFixed(1)}–${(v.salary.max / 1_000_000).toFixed(1)} mln` : v.subject ?? ''}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          icon={<PeopleIcon sx={{ fontSize: '12px !important' }} />}
+                          label={`${appCount} ariza`}
+                          size="small"
+                          sx={{ fontWeight: 700, bgcolor: appCount > 0 ? '#FEF3C7' : 'action.hover', color: appCount > 0 ? '#92400E' : 'text.secondary', flexShrink: 0 }}
+                        />
+                      </Stack>
+                    );
+                  })}
+                </Stack>
+              </CardContent>
+            </Card>
+          )}
         </Grid>
       </Grid>
     </Box>

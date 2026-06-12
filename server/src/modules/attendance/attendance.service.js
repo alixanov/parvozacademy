@@ -31,6 +31,17 @@ export async function getByStudent(studentId) {
  * @param lessonId  — legacy: content lesson ObjectId (kept for backward compat)
  */
 export async function mark({ groupId, date, sessionId, lessonId, records, markedBy }) {
+  // Validate all students belong to this group
+  const studentIds = records.map((r) => r.student);
+  const memberCount = await GroupMember.countDocuments({
+    group: groupId,
+    student: { $in: studentIds },
+    status: 'active',
+  });
+  if (memberCount !== studentIds.length) {
+    throw new AppError('Bir yoki bir nechta o\'quvchi bu guruhga tegishli emas', 400);
+  }
+
   const existing = await Attendance.findOne({ group: groupId, date: new Date(date) });
 
   if (existing) {

@@ -65,7 +65,6 @@ export async function createUser({ name, nameUz, nameRu, phone, email, password,
     phone: normalized,
     email: email || undefined,
     password,
-    passwordPlain: password,  // store plain text for admin view
     role: role || 'student',
     subject,
     experience: experience ? Number(experience) : undefined,
@@ -90,8 +89,11 @@ export async function updateUser(userId, updates) {
   if (updates.password && updates.password.length >= 6) {
     const user = await User.findById(userId).select('+password');
     if (!user) throw new AppError('User not found', 404);
-    user.password      = updates.password;
-    user.passwordPlain = updates.password;  // keep plain-text in sync
+    if (updates.currentPassword) {
+      const ok = await user.comparePassword(updates.currentPassword);
+      if (!ok) throw new AppError('Hozirgi parol noto\'g\'ri', 400);
+    }
+    user.password = updates.password;
     Object.assign(user, filtered);
     await user.save();
     return User.findById(userId);
