@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
-import { authenticate } from '../../middleware/auth.middleware.js';
+import { authenticate, optionalAuthenticate } from '../../middleware/auth.middleware.js';
 import { authorize }    from '../../middleware/rbac.middleware.js';
 import { validate }     from '../../middleware/validate.middleware.js';
 import * as ctrl        from './enrollment.controller.js';
@@ -18,7 +18,10 @@ const submitBody = [
   body('receiptUrl').isURL().withMessage('receiptUrl must be a valid URL'),
 ];
 
-router.post('/', submitBody, validate, ctrl.submit);
+router.post('/', optionalAuthenticate, submitBody, validate, ctrl.submit);
+
+/* ── Мои заявки (студент) ────────────────────────────────────────────────── */
+router.get('/my', authenticate, ctrl.myApplications);
 
 /* ── Маршруты только для Admin ───────────────────────────────────────────── */
 router.get('/',    adminOnly, ctrl.list);

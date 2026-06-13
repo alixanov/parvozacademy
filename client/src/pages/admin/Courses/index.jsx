@@ -103,7 +103,7 @@ const BLANK = {
 };
 
 /* ─── Диалог создания / редактирования ───────────────────────── */
-function CourseDialog({ open, initial, onClose, onSave, loading, apiError, teachers, tariffPlans }) {
+function CourseDialog({ open, initial, onClose, onSave, loading, apiError, teachers, tariffPlans, existingSubjects = [] }) {
   const { t }  = useTranslation();
   const isNew  = !initial;
   const [form, setForm] = useState(BLANK);
@@ -185,17 +185,6 @@ function CourseDialog({ open, initial, onClose, onSave, loading, apiError, teach
             />
           </Grid>
 
-          {/* Предмет */}
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Fan (predmet) *" fullWidth size="small"
-              value={form.subject} onChange={set('subject')}>
-              {SUBJECT_OPTIONS.map(s => (
-                <MenuItem key={s.value} value={s.value}>
-                  {s.labelUz} / {s.labelRu}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
 
           {/* Цвет */}
           <Grid item xs={12} sm={6}>
@@ -857,6 +846,7 @@ export default function AdminCourses() {
         apiError={apiErrMsg(createErr) || apiErrMsg(updateErr)}
         teachers={teachers}
         tariffPlans={tariffPlans}
+        existingSubjects={courses.map(c => c.subject).filter(Boolean)}
       />
 
       {/* Delete confirm */}

@@ -1,11 +1,10 @@
 import {
-  Box, Typography, Card, CardContent, Chip, Stack, Avatar,
+  Box, Typography, Card, CardContent, Chip, Stack,
   Button, CircularProgress, Divider, IconButton, Tooltip,
-  LinearProgress, Collapse, useTheme, useMediaQuery, Drawer,
-  Radio, RadioGroup, FormControlLabel, Alert, Slider,
+  LinearProgress, Collapse, useTheme, useMediaQuery, Drawer, Slider,
 } from '@mui/material';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate }       from 'react-router-dom';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation }    from 'react-i18next';
 
 import PlayCircleIcon        from '@mui/icons-material/PlayCircle';
@@ -41,6 +40,8 @@ import Replay10Icon            from '@mui/icons-material/Replay10';
 
 import { useGetMyAccessPackagesQuery } from '../../../features/packages/packagesApi.js';
 import i18n from '../../../utils/i18n.js';
+import { openPrivateFile } from '../../../utils/openPrivateFile.js';
+import LMSVideoPlayer from '../../../components/ui/LMSVideoPlayer.jsx';
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -105,6 +106,8 @@ function loadYouTubeAPI() {
 
   return _ytApiPromise;
 }
+
+/* PrivateVideoPlayer → replaced by LMSVideoPlayer */
 
 /* ─── VideoPlayer ──────────────────────────────────────────────────────────── */
 /*
@@ -771,14 +774,9 @@ function VideoPlayer({ url }) {
     );
   }
 
-  /* ── Нативный видеофайл ── */
+  /* ── Нативный видеофайл (presigned если T3) ── */
   if (isVideoFile(url)) {
-    return (
-      <Box sx={{ width: '100%', borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
-        <Box component="video" src={url} controls
-          sx={{ width: '100%', display: 'block', maxHeight: 480 }} />
-      </Box>
-    );
+    return <LMSVideoPlayer url={url} />;
   }
 
   /* ── Внешняя ссылка ── */
@@ -1243,7 +1241,9 @@ function LessonViewer({ pkg, modIdx, onDone, done, lang, totalMods, onPrev, onNe
               </Typography>
             </Stack>
             <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>
-              {m.description}
+              {typeof m.description === 'object'
+                ? (m.description[lang] ?? m.description.uz ?? m.description.ru ?? '')
+                : m.description}
             </Typography>
           </CardContent>
         </Card>
@@ -1270,11 +1270,39 @@ function LessonViewer({ pkg, modIdx, onDone, done, lang, totalMods, onPrev, onNe
                 variant="contained"
                 size="small"
                 startIcon={<DownloadIcon />}
-                component="a" href={m.file?.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => openPrivateFile(m.file?.url)}
                 sx={{ borderRadius: 2, bgcolor: '#10B981', fontWeight: 700, flexShrink: 0,
                   '&:hover': { bgcolor: '#059669' } }}
               >
-                {lang === 'ru' ? 'Скачать' : 'Yuklab olish'}
+                {lang === 'ru' ? 'Yuklab olish' : 'Yuklab olish'}
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── External link ── */}
+      {m.link && (
+        <Card elevation={0} sx={{ mb: 3, border: '1px solid #BFDBFE', borderRadius: 2.5, bgcolor: '#EFF6FF' }}>
+          <CardContent sx={{ p: 2 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#DBEAFE',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <OpenInNewIcon sx={{ fontSize: 20, color: '#3B82F6' }} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" fontWeight={700}>
+                  {lang === 'ru' ? 'Дополнительная ссылка' : 'Qo\'shimcha havola'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 300 }}>
+                  {m.link}
+                </Typography>
+              </Box>
+              <Button variant="contained" size="small" endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                onClick={() => window.open(m.link, '_blank', 'noopener,noreferrer')}
+                sx={{ borderRadius: 2, bgcolor: '#3B82F6', fontWeight: 700, flexShrink: 0,
+                  '&:hover': { bgcolor: '#2563EB' } }}>
+                {lang === 'ru' ? 'Открыть' : 'Ochish'}
               </Button>
             </Stack>
           </CardContent>
@@ -1351,6 +1379,7 @@ export default function VideoLessons() {
   const lang    = i18n.language === 'ru' ? 'ru' : 'uz';
   const theme   = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [searchParams] = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activePkgIdx, setActivePkgIdx] = useState(0);
@@ -1366,14 +1395,30 @@ export default function VideoLessons() {
 
   const { data: accessRes, isLoading } = useGetMyAccessPackagesQuery();
   /* API returns [{ access, package }] — extract the package from each entry */
-  const packages = useMemo(() => {
+  const allPackages = useMemo(() => {
     const raw = Array.isArray(accessRes?.data) ? accessRes.data
               : Array.isArray(accessRes)        ? accessRes
               : [];
     return raw
-      .map((item) => item?.package ?? item)   // { access, package } → package
+      .map((item) => item?.package ?? item)
       .filter(Boolean);
   }, [accessRes]);
+
+  /* If ?pkg= is in URL — show only that package in the sidebar */
+  const packages = useMemo(() => {
+    const pkgId = searchParams.get('pkg');
+    if (!pkgId) return allPackages;
+    const filtered = allPackages.filter((p) => String(p._id) === pkgId);
+    return filtered.length > 0 ? filtered : allPackages;
+  }, [allPackages, searchParams]);
+
+  /* Auto-select package from ?pkg= query param */
+  useEffect(() => {
+    const pkgId = searchParams.get('pkg');
+    if (!pkgId || packages.length === 0) return;
+    const idx = packages.findIndex((p) => String(p._id) === pkgId);
+    if (idx !== -1) setActivePkgIdx(idx);
+  }, [packages, searchParams]);
 
   const activePkg  = packages[activePkgIdx] ?? null;
   const totalMods  = (activePkg?.modules ?? []).length;

@@ -16,6 +16,12 @@ export const enrollmentApi = baseApi.injectEndpoints({
       providesTags: ['Enrollment'],
     }),
 
+    // GET /enrollment-applications/my  (student — own applications)
+    getMyApplications: b.query({
+      query: () => '/enrollment-applications/my',
+      providesTags: ['Enrollment'],
+    }),
+
     // GET /enrollment-applications/:id  (admin)
     getEnrollment: b.query({
       query: (id) => `/enrollment-applications/${id}`,
@@ -47,6 +53,7 @@ export const enrollmentApi = baseApi.injectEndpoints({
 
 export const {
   useSubmitApplicationMutation,
+  useGetMyApplicationsQuery,
   useGetEnrollmentsQuery,
   useGetEnrollmentQuery,
   useApproveEnrollmentMutation,

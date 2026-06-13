@@ -4,6 +4,10 @@ import { success, created, paginated } from '../../utils/response.utils.js';
 /** POST /enrollment-applications  — публично */
 export const submit = async (req, res, next) => {
   try {
+    // Admins and teachers cannot enroll as students
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'teacher')) {
+      return res.status(403).json({ success: false, message: 'Administrator va o\'qituvchilar kursga yozila olmaydi. Yangi o\'quvchi sifatida alohida ro\'yxatdan o\'ting.' });
+    }
     const app = await svc.submitApplication({
       fullName:   req.body.fullName,
       phone:      req.body.phone,
@@ -16,6 +20,14 @@ export const submit = async (req, res, next) => {
       student:    req.user?._id ?? null,
     });
     created(res, app, 'Arizangiz qabul qilindi. Tez orada javob beramiz.');
+  } catch (e) { next(e); }
+};
+
+/** GET /enrollment-applications/my  — student (own applications) */
+export const myApplications = async (req, res, next) => {
+  try {
+    const apps = await svc.getMyApplications(req.user._id);
+    success(res, apps);
   } catch (e) { next(e); }
 };
 

@@ -43,6 +43,18 @@ export async function submitApplication(data) {
   return EnrollmentApplication.create(doc);
 }
 
+/* ─── student: my applications ─────────────────────────────────────────────── */
+
+export async function getMyApplications(userId) {
+  const user = await User.findById(userId).select('phone').lean();
+  const query = user?.phone
+    ? { $or: [{ student: userId }, { phone: user.phone }] }
+    : { student: userId };
+  return EnrollmentApplication.find(query)
+    .populate('course', 'title subject color duration')
+    .sort({ createdAt: -1 });
+}
+
 /* ─── admin: list ──────────────────────────────────────────────────────────── */
 
 export async function getAll({ page = 1, limit = 20, status } = {}) {
@@ -91,145 +103,145 @@ export async function getById(id) {
  *   groupId — опционально; если не передан, берётся первая подходящая группа
  */
 export async function approve(id, { adminId, groupId } = {}) {
-  const session = await mongoose.startSession();
+  const app = await EnrollmentApplication.findById(id)
+    .populate('course',  'title teacher')
+    .populate('package', 'title price');
+  if (!app) throw new AppError('Application not found', 404);
+  if (app.status !== 'pending') throw new AppError('Application already processed', 400);
 
-  try {
-    let result;
-    await session.withTransaction(async () => {
-      const app = await EnrollmentApplication.findById(id)
-        .populate('course',  'title')
-        .populate('package', 'title price')
-        .session(session);
-      if (!app)               throw new AppError('Application not found', 404);
-      if (app.status !== 'pending') throw new AppError('Application already processed', 400);
+  /* 1. Найти или создать ученика ─────────────────────────────────────────── */
+  let student   = await User.findOne({ phone: app.phone });
+  let isNewUser = false;
 
-      /* 1. Найти или создать ученика ───────────────────────────────────────── */
-      let student  = await User.findOne({ phone: app.phone }).session(session);
-      let isNewUser = false;
-
-      if (!student) {
-        isNewUser = true;
-        student   = new User({
-          name:      app.fullName,
-          phone:     app.phone,
-          password:  app.phone.replace(/\D/g, '').slice(-6) || '000000',
-          role:      'student',
-          isActive:  true,
-          studentId: await generateStudentId(),
-        });
-        await student.save({ session });
-      } else if (!student.isActive) {
-        student.isActive = true;
-        await student.save({ session });
-      }
-
-      /* ── Package application: grant access directly ─────────────────────── */
-      if (app.package) {
-        const packageId = app.package._id ?? app.package;
-        await pkgSvc.grantAccess(packageId, student._id, adminId, {
-          paymentAmount: app.amount,
-          note: `Enrollment #${app._id} approved`,
-        });
-
-        app.status      = 'approved';
-        app.processedAt = new Date();
-        app.processedBy = adminId;
-        app.student     = student._id;
-        await app.save({ session });
-
-        result = { application: app, student, isNewUser, group: null, payment: null };
-        return;
-      }
-
-      /* ── Course application ──────────────────────────────────────────────── */
-
-      /* 2. Определить группу ───────────────────────────────────────────────── */
-      let group;
-      if (groupId) {
-        group = await Group.findById(groupId).session(session);
-        if (!group) throw new AppError('Selected group not found', 404);
-      } else {
-        group = await Group.findOne({
-          course:   app.course._id,
-          type:     app.tariffKey,
-          isActive: true,
-        }).session(session);
-      }
-
-      if (!group) {
-        const courseName = app.course?.title?.ru ?? app.course?.title?.uz ?? String(app.course._id);
-        throw new AppError(
-          `"${courseName}" kursi uchun "${app.tariffKey}" turidagi aktiv guruh topilmadi. ` +
-          `Avval guruh yarating yoki groupId parametrini yuboring.`,
-          404,
-        );
-      }
-
-      /* 3. Добавить в группу ──────────────────────────────────────────────── */
-      const existing = await GroupMember.findOne({ group: group._id, student: student._id }).session(session);
-      if (!existing) {
-        await GroupMember.create([{
-          group:    group._id,
-          student:  student._id,
-          status:   'active',
-          joinedAt: new Date(),
-        }], { session });
-      } else if (existing.status !== 'active') {
-        existing.status   = 'active';
-        existing.joinedAt = new Date();
-        await existing.save({ session });
-      }
-
-      /* 4. Создать запись оплаты ──────────────────────────────────────────── */
-      const now         = new Date();
-      const yearMonth   = currentYearMonth();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const periodEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const dueDate     = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      let payment = await Payment.findOne({ student: student._id, group: group._id, month: yearMonth }).session(session);
-      if (!payment) {
-        const paymentAmount = group.price?.amount ?? app.amount;
-        [payment] = await Payment.create([{
-          student:      student._id,
-          group:        group._id,
-          amount:       paymentAmount,
-          currency:     group.price?.currency ?? 'UZS',
-          month:        yearMonth,
-          status:       'paid',
-          paymentMethod:'transfer',
-          paidAmount:   app.amount,
-          confirmedBy:  adminId,
-          receiptUrl:   app.receiptUrl,
-          paidAt:       now,
-          dueDate,
-          periodStart,
-          periodEnd,
-          enrollment:   app._id,
-        }], { session });
-      }
-
-      /* 5. Долговые платежи (вне транзакции — idempotent) ─────────────────── */
-      if (group.status === 'active' || group.isActive) {
-        await generateGroupPayments(student._id, group._id);
-      }
-
-      /* 6. Обновить заявку → approved ──────────────────────────────────────── */
-      app.status      = 'approved';
-      app.processedAt = now;
-      app.processedBy = adminId;
-      app.student     = student._id;
-      app.group       = group._id;
-      app.payment     = payment._id;
-      await app.save({ session });
-
-      result = { application: app, student, isNewUser, group, payment };
-    });
-
-    return result;
-  } finally {
-    session.endSession();
+  if (student && (student.role === 'admin' || student.role === 'teacher')) {
+    throw new AppError(
+      `Bu telefon raqam (${app.phone}) administrator yoki o'qituvchiga tegishli.`,
+      400,
+    );
   }
+
+  if (!student) {
+    isNewUser = true;
+    student   = await User.create({
+      name:      app.fullName,
+      phone:     app.phone,
+      password:  app.phone.replace(/\D/g, '').slice(-6) || '000000',
+      role:      'student',
+      isActive:  true,
+      studentId: await generateStudentId(),
+    });
+  } else if (!student.isActive) {
+    student.isActive = true;
+    await student.save();
+  }
+
+  /* ── Package application ────────────────────────────────────────────────── */
+  if (app.package) {
+    const packageId = app.package._id ?? app.package;
+    await pkgSvc.grantAccess(packageId, student._id, adminId, {
+      paymentAmount: app.amount,
+      note: `Enrollment #${app._id} approved`,
+    });
+    app.status      = 'approved';
+    app.processedAt = new Date();
+    app.processedBy = adminId;
+    app.student     = student._id;
+    await app.save();
+    return { application: app, student, isNewUser, group: null, payment: null };
+  }
+
+  /* ── Course application ─────────────────────────────────────────────────── */
+
+  /* 2. Найти или авто-создать группу ──────────────────────────────────────── */
+  let group;
+  const courseId = app.course._id ?? app.course;
+  const tariff   = app.tariffKey;
+
+  if (groupId) {
+    group = await Group.findById(groupId);
+    if (!group) throw new AppError('Selected group not found', 404);
+  } else {
+    const candidates = await Group.find({ course: courseId, type: tariff, status: 'inactive' });
+    for (const candidate of candidates) {
+      const memberCount = await GroupMember.countDocuments({ group: candidate._id, status: 'active' });
+      if (memberCount < (candidate.maxStudents ?? 20)) { group = candidate; break; }
+    }
+
+    if (!group) {
+      const MONTHS_UZ   = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+      const TARIFF_LABEL = { online: 'Online', offline: 'Offline', individual_online: 'Individual Online', individual_offline: 'Individual Offline' };
+      const now         = new Date();
+      const teacherId   = app.course?.teacher ?? adminId;
+      const courseName  = app.course?.title?.uz ?? app.course?.title?.ru ?? 'Kurs';
+      const groupName   = `${courseName} — ${TARIFF_LABEL[tariff] ?? tariff} — ${MONTHS_UZ[now.getMonth()]} ${now.getFullYear()}`;
+
+      group = await Group.create({
+        name:        groupName,
+        course:      courseId,
+        teacher:     teacherId,
+        type:        tariff,
+        status:      'inactive',
+        isActive:    false,
+        maxStudents: 20,
+        price:       { amount: app.amount ?? 0, currency: 'UZS' },
+        schedule:    [],
+      });
+    }
+  }
+
+  /* 3. Добавить в группу ────────────────────────────────────────────────── */
+  const existing = await GroupMember.findOne({ group: group._id, student: student._id });
+  if (!existing) {
+    await GroupMember.create({ group: group._id, student: student._id, status: 'active', joinedAt: new Date() });
+  } else if (existing.status !== 'active') {
+    existing.status = 'active';
+    existing.joinedAt = new Date();
+    await existing.save();
+  }
+
+  /* 4. Создать запись оплаты ─────────────────────────────────────────────── */
+  const now         = new Date();
+  const yearMonth   = currentYearMonth();
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const dueDate     = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  let payment = await Payment.findOne({ student: student._id, group: group._id, month: yearMonth });
+  if (!payment) {
+    payment = await Payment.create({
+      student:       student._id,
+      group:         group._id,
+      amount:        group.price?.amount ?? app.amount,
+      currency:      group.price?.currency ?? 'UZS',
+      month:         yearMonth,
+      status:        'paid',
+      paymentMethod: 'transfer',
+      paidAmount:    app.amount,
+      confirmedBy:   adminId,
+      receiptUrl:    app.receiptUrl,
+      paidAt:        now,
+      dueDate,
+      periodStart,
+      periodEnd,
+      enrollment:    app._id,
+    });
+  }
+
+  /* 5. Долговые платежи ──────────────────────────────────────────────────── */
+  if (group.isActive) {
+    await generateGroupPayments(student._id, group._id).catch(() => {});
+  }
+
+  /* 6. Обновить заявку → approved ─────────────────────────────────────────── */
+  app.status      = 'approved';
+  app.processedAt = now;
+  app.processedBy = adminId;
+  app.student     = student._id;
+  app.group       = group._id;
+  app.payment     = payment._id;
+  await app.save();
+
+  return { application: app, student, isNewUser, group, payment };
 }
 
 /* ─── admin: reject ────────────────────────────────────────────────────────── */

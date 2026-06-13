@@ -3,7 +3,7 @@ import {
   Avatar, Chip, Button, Stack, Divider, List,
   ListItem, ListItemIcon, ListItemText, Accordion,
   AccordionSummary, AccordionDetails, Rating, Alert, Paper,
-  CircularProgress,
+  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -28,6 +28,8 @@ import PersonIcon       from '@mui/icons-material/Person';
 import CheckCircleIcon  from '@mui/icons-material/CheckCircle';
 import LaptopIcon       from '@mui/icons-material/Laptop';
 import StarIcon         from '@mui/icons-material/Star';
+import BlockIcon        from '@mui/icons-material/Block';
+import HowToRegIcon     from '@mui/icons-material/HowToReg';
 import { SUBJECT_COLORS, formatPrice } from '../../../data/mockData.js';
 import { useGetCourseByIdQuery }       from '../../../features/courses/coursesApi.js';
 import i18n from '../../../utils/i18n.js';
@@ -56,6 +58,7 @@ export default function CourseDetail() {
   const [payOpen, setPayOpen]               = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
   const [showFloatingBar, setShowFloating]  = useState(false);
+  const [blockDialog, setBlockDialog]       = useState(false);
   const buyCardRef = useRef(null);
 
   /* ── Derived from API data (after hooks) ──────────────────────── */
@@ -108,6 +111,7 @@ export default function CourseDetail() {
 
   const handleEnroll = () => {
     if (!isAuth) { navigate('/register', { state: { from: location } }); return; }
+    if (user?.role === 'admin' || user?.role === 'teacher') { setBlockDialog(true); return; }
     if (isEnrolled) { navigate('/student'); return; }
     setPayOpen(true);
   };
@@ -602,6 +606,40 @@ export default function CourseDetail() {
         course={course}
         initialPlanId={selectedPlanId}
       />
+
+      {/* Block dialog for admin/teacher */}
+      <Dialog open={blockDialog} onClose={() => setBlockDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
+          <Avatar sx={{ width: 56, height: 56, bgcolor: '#FEF3C7', mx: 'auto', mb: 1.5 }}>
+            <BlockIcon sx={{ fontSize: 30, color: '#D97706' }} />
+          </Avatar>
+          <Typography variant="h6" fontWeight={800}>Kursga yozilish mumkin emas</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>{user?.role === 'admin' ? 'Administrator' : "O'qituvchi"}</strong> hisobi orqali kurs sotib olib bo'lmaydi.
+          </Typography>
+          <Alert severity="info" icon={<HowToRegIcon />} sx={{ borderRadius: 2, textAlign: 'left' }}>
+            Kursga yozilmoqchi bo'lsangiz — boshqa telefon raqam bilan <strong>o'quvchi (abituriyent)</strong> sifatida ro'yxatdan o'ting.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ flexDirection: 'column', gap: 1, px: 3, pb: 3 }}>
+          <Button
+            variant="contained" fullWidth startIcon={<HowToRegIcon />}
+            href="/register"
+            sx={{ borderRadius: 2, py: 1.1, fontWeight: 700 }}
+          >
+            Yangi o'quvchi sifatida ro'yxatdan o'tish
+          </Button>
+          <Button
+            variant="outlined" fullWidth
+            onClick={() => setBlockDialog(false)}
+            sx={{ borderRadius: 2, py: 1.1 }}
+          >
+            Yopish
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

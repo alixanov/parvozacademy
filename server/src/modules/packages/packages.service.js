@@ -204,7 +204,9 @@ export async function addModule(id, moduleData, requestingUser) {
     title:       moduleData.title ?? { uz: `Modul ${order}`, ru: `Модуль ${order}` },
     description: moduleData.description ?? '',
     file:        moduleData.file   ?? {},
-    videoUrl:    moduleData.videoUrl ?? '',
+    link:        moduleData.link      ?? '',
+    videoUrl:    moduleData.videoUrl  ?? '',
+    videoFile:   moduleData.videoFile ?? '',
     quiz:        moduleData.quiz ?? [],
     isPublished: true,
   });
@@ -245,7 +247,7 @@ export async function updateModule(id, moduleIdx, moduleData, requestingUser) {
   if (idx < 0 || idx >= pkg.modules.length) throw new AppError('Modul topilmadi', 404);
 
   const mod = pkg.modules[idx];
-  const updatable = ['title', 'description', 'file', 'videoUrl', 'isPublished', 'order', 'quiz'];
+  const updatable = ['title', 'description', 'file', 'link', 'videoUrl', 'videoFile', 'isPublished', 'order', 'quiz'];
   updatable.forEach((key) => {
     if (moduleData[key] !== undefined) mod[key] = moduleData[key];
   });

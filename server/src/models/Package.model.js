@@ -24,7 +24,7 @@ const packageModuleSchema = new mongoose.Schema(
   {
     order:       { type: Number, default: 0 },
     title:       { uz: String, ru: String },
-    description: { type: String, default: '' },
+    description: { uz: { type: String, default: '' }, ru: { type: String, default: '' } },
     file: {
       name:     { type: String, default: '' },
       url:      { type: String, default: '' },
@@ -32,7 +32,9 @@ const packageModuleSchema = new mongoose.Schema(
       type:     { type: String, enum: ['pdf', 'doc', 'docx', 'pptx', 'other'], default: 'pdf' },
       size:     { type: Number, default: 0 }, // bytes
     },
-    videoUrl:    { type: String, default: '' }, // YouTube / embed
+    link:        { type: String, default: '' },
+    videoUrl:    { type: String, default: '' }, // YouTube URL
+    videoFile:   { type: String, default: '' }, // uploaded video file URL (T3)
     isPublished: { type: Boolean, default: true },
     quiz:        { type: [quizQuestionSchema], default: [] }, // up to 10 test questions
   },

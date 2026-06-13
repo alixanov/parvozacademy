@@ -25,6 +25,7 @@ import AttachFileIcon     from '@mui/icons-material/AttachFile';
 import QuizIcon           from '@mui/icons-material/Quiz';
 import ViewListIcon       from '@mui/icons-material/ViewList';
 import i18n from '../../../utils/i18n.js';
+import { openPrivateFile } from '../../../utils/openPrivateFile.js';
 import { useTranslation } from 'react-i18next';
 import {
   useGetAllPackagesAdminQuery,
@@ -728,9 +729,10 @@ function ModuleCard({ m, idx, lang }) {
                 <AttachFileIcon sx={{ fontSize: 16, color: '#1976D2', flexShrink: 0 }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
-                    component="a" href={m.file.url} target="_blank" rel="noopener noreferrer"
+                    component="span"
+                    onClick={() => openPrivateFile(m.file.url)}
                     sx={{ fontSize: '0.8rem', color: '#1976D2', fontWeight: 600,
-                      textDecoration: 'none', display: 'block', overflow: 'hidden',
+                      cursor: 'pointer', display: 'block', overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       '&:hover': { textDecoration: 'underline' } }}>
                     {m.file.name || t('packages.downloadFile')}

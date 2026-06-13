@@ -52,10 +52,10 @@ function ApproveDialog({ open, application, onClose }) {
   const [approve, { isLoading }] = useApproveEnrollmentMutation();
 
   const allGroups    = groupsRes?.data ?? [];
+  // Show both active and inactive groups with matching course+tariff for manual selection
   const matchGroups  = allGroups.filter(
     (g) => g.course?._id === application?.course?._id
-      && g.type === application?.tariffKey
-      && g.isActive,
+      && g.type === application?.tariffKey,
   );
 
   const handleApprove = async () => {
@@ -128,18 +128,18 @@ function ApproveDialog({ open, application, onClose }) {
                 (bo'sh qoldiring — avtomatik tayinlanadi)
               </Typography>
             </Typography>
-            {matchGroups.length === 0 ? (
-              <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                Bu kurs + tarif uchun aktiv guruh topilmadi. Avval guruh yarating.
-              </Alert>
-            ) : (
+            <Alert severity="info" sx={{ borderRadius: 2, mb: matchGroups.length > 0 ? 1.5 : 0 }}>
+              Guruh tanlamasangiz — tizim avtomatik topadi yoki yangi guruh yaratadi:<br />
+              <strong>"{cTitle(application?.course)} — {application?.tariffKey} — [Oy Yil]"</strong>
+            </Alert>
+            {matchGroups.length > 0 && (
               <FormControl fullWidth size="small">
-                <InputLabel>Guruh</InputLabel>
-                <Select value={groupId} label="Guruh" onChange={(e) => setGroupId(e.target.value)}>
-                  <MenuItem value="">Avtomatik (birinchi topilgan)</MenuItem>
+                <InputLabel>Guruh (ixtiyoriy)</InputLabel>
+                <Select value={groupId} label="Guruh (ixtiyoriy)" onChange={(e) => setGroupId(e.target.value)}>
+                  <MenuItem value="">Avtomatik</MenuItem>
                   {matchGroups.map((g) => (
                     <MenuItem key={g._id} value={g._id}>
-                      {g.name} — {g.teacher?.name ?? '?'} ({g.maxStudents} o'rin)
+                      {g.name} — {g.isActive ? '✅ Faol' : '⏳ Kutmoqda'} ({g.maxStudents} o'rin)
                     </MenuItem>
                   ))}
                 </Select>

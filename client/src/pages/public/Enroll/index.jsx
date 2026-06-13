@@ -20,6 +20,9 @@ import i18n from '../../../utils/i18n.js';
 import { useSelector }  from 'react-redux';
 import { selectUser }   from '../../../features/auth/authSlice.js';
 import LoginIcon        from '@mui/icons-material/Login';
+import BlockIcon        from '@mui/icons-material/Block';
+import HowToRegIcon     from '@mui/icons-material/HowToReg';
+import ArrowBackIcon    from '@mui/icons-material/ArrowBack';
 
 /* ─── constants ───────────────────────────────────────────────────────────── */
 const PALETTE = ['#1976D2','#EF4444','#7C3AED','#10B981','#F59E0B','#3B82F6','#EC4899','#06B6D4'];
@@ -436,15 +439,48 @@ export default function EnrollPage() {
   /* Admin/teacher cannot purchase courses */
   if (isAdminOrTeacher) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 10, px: 2 }}>
-        <Box sx={{ maxWidth: 480, mx: 'auto', textAlign: 'center' }}>
-          <Alert severity="warning" sx={{ borderRadius: 3, mb: 3 }}>
-            Administrator va o'qituvchilar kursga yozila olmaydi.
-          </Alert>
-          <Button variant="outlined" href={`/${currentUser.role}`} sx={{ borderRadius: 2 }}>
-            Kabinетga qaytish
-          </Button>
-        </Box>
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+        <Card elevation={0} sx={{ maxWidth: 480, width: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+          <Box sx={{ bgcolor: '#FEF3C7', px: 4, py: 3, textAlign: 'center', borderBottom: '1px solid #FDE68A' }}>
+            <Avatar sx={{ width: 64, height: 64, bgcolor: '#F59E0B22', mx: 'auto', mb: 1.5 }}>
+              <BlockIcon sx={{ fontSize: 34, color: '#D97706' }} />
+            </Avatar>
+            <Typography variant="h6" fontWeight={800} color="#92400E">
+              Kursga yozilish mumkin emas
+            </Typography>
+            <Typography variant="body2" color="#78350F" sx={{ mt: 0.5 }}>
+              {currentUser.role === 'admin' ? 'Administrator' : "O'qituvchi"} hisobi orqali kurs sotib olib bo'lmaydi
+            </Typography>
+          </Box>
+          <CardContent sx={{ px: 4, py: 3 }}>
+            <Alert severity="info" icon={<HowToRegIcon />} sx={{ borderRadius: 2, mb: 3 }}>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Kursga yozilmoqchimisiz?</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Iltimos, boshqa telefon raqam bilan <strong>abituriyent (o'quvchi)</strong> sifatida ro'yxatdan o'ting. Admin va o'qituvchi hisoblari o'quv jarayoniga qo'shila olmaydi.
+              </Typography>
+            </Alert>
+            <Stack spacing={1.5}>
+              <Button
+                variant="contained"
+                startIcon={<HowToRegIcon />}
+                href="/register"
+                fullWidth
+                sx={{ borderRadius: 2, py: 1.2, fontWeight: 700 }}
+              >
+                Yangi o'quvchi sifatida ro'yxatdan o'tish
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                href={`/${currentUser.role}`}
+                fullWidth
+                sx={{ borderRadius: 2, py: 1.2 }}
+              >
+                Kabinetga qaytish
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
       </Box>
     );
   }

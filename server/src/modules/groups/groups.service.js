@@ -456,6 +456,7 @@ export async function getMyGroups(studentId) {
   return Group.find({ _id: { $in: groupIds } })
     .populate('course', 'title subject')
     .populate('teacher', 'name avatar')
+    .populate('package', '_id title')
     .sort({ createdAt: -1 });
 }
 

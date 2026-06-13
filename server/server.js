@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'path';
 import app from './src/app.js';
 import { connectDB } from './src/config/db.js';
 import { initSocket } from './src/config/socket.js';
+import { startLessonReminderJob } from './src/jobs/lessonReminder.js';
 
 const PORT     = process.env.PORT || 5000;
 const IS_PROD  = process.env.NODE_ENV === 'production';
@@ -37,6 +38,7 @@ async function bootstrap() {
 
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT} [${process.env.NODE_ENV}]`);
+    startLessonReminderJob();
   });
 }
 

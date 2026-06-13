@@ -64,6 +64,9 @@ const groupSessionSchema = new mongoose.Schema(
 
     /** Free-form notes (teacher private, visible to admin) */
     notes: { type: String, trim: true },
+
+    /** Set to true after 15-min reminder notification is sent */
+    reminderSent: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -1,5 +1,6 @@
 import { uploadImage, uploadDocument, uploadVideo, uploadReceipt, handleUpload } from '../../middleware/upload.middleware.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3, BUCKET } from '../../config/storage.js';
 import { AppError } from '../../utils/response.utils.js';
 
@@ -76,7 +77,29 @@ export function uploadVideoRoute(req, res, next) {
 }
 
 /**
- * GET /api/v1/uploads/view?key=receipts/xxx.png  — admin only (requires auth)
+ * GET /api/v1/uploads/presign?key=receipts/xxx.pdf  — authenticated users
+ * Returns a temporary presigned URL (1 hour) for a private T3 object.
+ * Accepts either a bare key or a full T3 URL.
+ */
+export async function presignFileRoute(req, res, next) {
+  try {
+    let key = req.query.key ?? '';
+    if (!key) return next(new AppError('key is required', 400));
+
+    const prefix = `${process.env.T3_ENDPOINT}/${BUCKET}/`;
+    if (key.startsWith(prefix)) key = key.slice(prefix.length);
+    if (key.startsWith('http')) return next(new AppError('Invalid key', 400));
+
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const url = await getSignedUrl(s3, command, { expiresIn: 21600 });
+    res.json({ success: true, data: { url } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/uploads/view?key=receipts/xxx.png  — authenticated users
  * Proxies a private T3 object to the client so it can be displayed in the browser.
  * Accepts either a bare key ("receipts/xxx.png") or a full T3 URL.
  */

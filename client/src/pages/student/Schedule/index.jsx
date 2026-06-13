@@ -14,6 +14,7 @@ import CheckCircleIcon       from '@mui/icons-material/CheckCircle';
 import PlayCircleIcon        from '@mui/icons-material/PlayCircle';
 import ScheduleIcon          from '@mui/icons-material/Schedule';
 import SchoolIcon            from '@mui/icons-material/School';
+import LinkIcon              from '@mui/icons-material/Link';
 import PageHeader            from '../../../components/common/PageHeader/index.jsx';
 import { useGetMyGroupsQuery }       from '../../../features/groups/groupsApi.js';
 import { useGetSessionsByGroupQuery } from '../../../features/sessions/sessionsApi.js';
@@ -170,6 +171,22 @@ function GroupSessionsList({ groupId, color, lang }) {
                       </Stack>
                     )}
                   </Stack>
+
+                  {/* Stream link button */}
+                  {s.lessonLink?.url && (s.status === 'scheduled' || s.status === 'live') && (
+                    <Button size="small" variant="contained"
+                      startIcon={<LinkIcon sx={{ fontSize: 13 }} />}
+                      onClick={() => window.open(s.lessonLink.url, '_blank', 'noopener,noreferrer')}
+                      sx={{
+                        mt: 0.5, borderRadius: 1.5, textTransform: 'none', fontSize: '0.72rem', height: 28,
+                        bgcolor: s.status === 'live' ? '#10B981' : '#1976D2',
+                        '&:hover': { bgcolor: s.status === 'live' ? '#059669' : '#1565C0' },
+                      }}>
+                      {lang === 'ru'
+                        ? (s.status === 'live' ? '🔴 Войти сейчас' : 'Войти на урок')
+                        : (s.status === 'live' ? '🔴 Hozir kirish' : 'Darsga kirish')}
+                    </Button>
+                  )}
 
                   {/* Topic */}
                   {s.topic && (
