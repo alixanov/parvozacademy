@@ -22,16 +22,24 @@ function storageKey(url) {
   try { return `lms_vp_${btoa(url).slice(0, 40)}`; } catch { return `lms_vp_${url.slice(-40)}`; }
 }
 
-function fetchPresigned(rawUrl) {
+async function fetchPresigned(rawUrl) {
   const isT3 = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
-  if (!isT3) return Promise.resolve(rawUrl);
+  if (!isT3) return rawUrl;
 
-  // Use server-side streaming proxy — same-origin, no CORS issues, supports Range
-  // requests so video seeking works on iOS Safari. The browser sends the httpOnly
-  // refreshToken cookie automatically (same-origin), so no token needed in the URL.
-  return Promise.resolve(
-    `/api/v1/uploads/stream?key=${encodeURIComponent(rawUrl)}`
-  );
+  // Use server-side streaming proxy — same-origin, no CORS, Range headers work.
+  // Include access token in URL so auth works even if iOS Safari cleared cookies.
+  // Cookie (refreshToken) is also sent automatically as a fallback.
+  const { store } = await import('../../app/store.js');
+
+  // Wait briefly for auth to initialize (token may be loading from localStorage)
+  for (let i = 0; i < 10; i++) {
+    if (!store.getState().auth.initializing) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  const token = store.getState().auth?.accessToken;
+  const base = `/api/v1/uploads/stream?key=${encodeURIComponent(rawUrl)}`;
+  return token ? `${base}&token=${encodeURIComponent(token)}` : base;
 }
 
 /* detect touch device */
