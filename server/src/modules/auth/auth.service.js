@@ -12,12 +12,15 @@ function _normalizePhone(raw = '') {
   return raw.trim(); // pass through unknown format
 }
 
+const IS_PROD = process.env.NODE_ENV === 'production';
 export const REFRESH_COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
-  maxAge: REFRESH_TTL_MS,
-  path: '/',
+  secure:   IS_PROD,
+  // 'none' required for cross-origin requests (mobile browsers, in-app browsers)
+  // 'lax' for local dev (http doesn't allow 'none')
+  sameSite: IS_PROD ? 'none' : 'lax',
+  maxAge:   REFRESH_TTL_MS,
+  path:     '/',
 };
 
 function issueTokens(user) {

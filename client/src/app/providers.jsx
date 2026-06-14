@@ -37,27 +37,52 @@ function AppThemeProvider({ children }) {
   );
 }
 
-/* ─── Silent auth refresh on boot ───────────────────────────── */
+/* ─── Silent auth refresh ────────────────────────────────────── */
+async function silentRefresh(signal) {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/auth/refresh`,
+      { method: 'POST', credentials: 'include', signal },
+    );
+    if (res.ok) {
+      const { data } = await res.json();
+      store.dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
+      return true;
+    } else {
+      store.dispatch(clearCredentials());
+      return false;
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') store.dispatch(clearCredentials());
+    return false;
+  }
+}
+
 function AuthInitializer() {
   useEffect(() => {
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/auth/refresh`,
-          { method: 'POST', credentials: 'include', signal: controller.signal },
-        );
-        if (res.ok) {
-          const { data } = await res.json();
-          store.dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
-        } else {
-          store.dispatch(clearCredentials());
-        }
-      } catch (err) {
-        if (err.name !== 'AbortError') store.dispatch(clearCredentials());
+
+    // Refresh on boot
+    silentRefresh(controller.signal);
+
+    // Refresh when user returns to the app (mobile: after backgrounding)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        silentRefresh(null);
       }
-    })();
-    return () => controller.abort();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Refresh every 13 minutes (access token typically lives 15 min)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') silentRefresh(null);
+    }, 13 * 60 * 1000);
+
+    return () => {
+      controller.abort();
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
   }, []);
   return null;
 }
