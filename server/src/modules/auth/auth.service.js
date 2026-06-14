@@ -16,9 +16,7 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 export const REFRESH_COOKIE_OPTS = {
   httpOnly: true,
   secure:   IS_PROD,
-  // 'none' required for cross-origin requests (mobile browsers, in-app browsers)
-  // 'lax' for local dev (http doesn't allow 'none')
-  sameSite: IS_PROD ? 'none' : 'lax',
+  sameSite: 'lax', // same-origin app — lax works everywhere incl. old iOS Safari
   maxAge:   REFRESH_TTL_MS,
   path:     '/',
 };

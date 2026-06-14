@@ -29,23 +29,24 @@ async function fetchPresigned(rawUrl) {
     const isT3 = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
     if (!isT3) return rawUrl;
 
-    // Wait up to 4s for auth to initialize (mobile: AuthInitializer is async)
-    let token = store.getState().auth?.accessToken;
-    if (!token) {
-      for (let i = 0; i < 8; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        token = store.getState().auth?.accessToken;
-        if (token) break;
-      }
+    // Wait until auth finishes initializing (mobile: refresh cookie fetch is async)
+    // authSlice.initializing starts true, becomes false after refresh completes/fails
+    for (let i = 0; i < 20; i++) {
+      const auth = store.getState().auth;
+      if (!auth.initializing) break;
+      await new Promise((r) => setTimeout(r, 300));
     }
 
+    const token = store.getState().auth?.accessToken;
+    if (!token) return null; // user not authenticated
+
     const res = await fetch(`/api/v1/uploads/presign?key=${encodeURIComponent(rawUrl)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`presign ${res.status}`);
     const json = await res.json();
-    return json?.data?.url ?? rawUrl;
-  } catch { return null; } // null → trigger retry in caller
+    return json?.data?.url ?? null;
+  } catch { return null; }
 }
 
 /* detect touch device */
