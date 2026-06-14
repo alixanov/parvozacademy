@@ -90,7 +90,13 @@ export async function presignFileRoute(req, res, next) {
     if (key.startsWith(prefix)) key = key.slice(prefix.length);
     if (key.startsWith('http')) return next(new AppError('Invalid key', 400));
 
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const cmdParams = { Bucket: BUCKET, Key: key };
+    // ?dl=1 → force browser download (Content-Disposition: attachment)
+    if (req.query.dl === '1') {
+      const filename = key.split('/').pop() || 'file';
+      cmdParams.ResponseContentDisposition = `attachment; filename="${filename}"`;
+    }
+    const command = new GetObjectCommand(cmdParams);
     const url = await getSignedUrl(s3, command, { expiresIn: 21600 });
     res.json({ success: true, data: { url } });
   } catch (err) {

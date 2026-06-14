@@ -1,45 +1,41 @@
 import { store } from '../app/store.js';
 
 /**
- * Opens a private T3 Storage file via presigned URL.
+ * Downloads a private T3 Storage file.
  *
- * Safari fix: window.open() MUST be called synchronously during a user gesture.
- * Any await before window.open() causes Safari to block the popup.
- * Solution: open about:blank immediately, then set location after presign.
+ * Uses window.location.assign(presignedUrl) — no popup window, no Safari popup
+ * blocker issues. The presigned URL is generated with Content-Disposition:attachment
+ * so the browser downloads the file and stays on the current page.
  */
 export async function openPrivateFile(fileUrl) {
   if (!fileUrl) return;
 
-  // Open blank window immediately (synchronous — Safari allows this)
-  const win = window.open('about:blank', '_blank');
+  // Wait for auth to finish initializing (max 1s — token should be in localStorage)
+  for (let i = 0; i < 10; i++) {
+    if (!store.getState().auth.initializing) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
 
-  try {
-    // Wait for auth to finish initializing (max 6s)
-    for (let i = 0; i < 20; i++) {
-      const auth = store.getState().auth;
-      if (!auth.initializing) break;
-      await new Promise((r) => setTimeout(r, 300));
-    }
+  const token = store.getState().auth?.accessToken;
 
-    const token = store.getState().auth?.accessToken;
-
-    if (token) {
+  if (token) {
+    try {
       const res = await fetch(
-        `/api/v1/uploads/presign?key=${encodeURIComponent(fileUrl)}`,
+        `/api/v1/uploads/presign?key=${encodeURIComponent(fileUrl)}&dl=1`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.ok) {
         const json = await res.json();
-        const presigned = json?.data?.url;
-        if (presigned && win) {
-          win.location.href = presigned;
+        const url = json?.data?.url;
+        if (url) {
+          // Same-window navigation — browser downloads file, stays on page
+          window.location.assign(url);
           return;
         }
       }
-    }
-  } catch { /* fall through */ }
+    } catch { /* fall through to fallback */ }
+  }
 
-  // Fallback: navigate to raw URL (will show AccessDenied for private files,
-  // but at least the window is already open so Safari won't block it)
-  if (win) win.location.href = fileUrl;
+  // Fallback: open raw URL in new tab
+  window.open(fileUrl, '_blank', 'noopener,noreferrer');
 }

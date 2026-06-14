@@ -1116,7 +1116,7 @@ function Sidebar({ packages, activePkgIdx, activeMod, onSelectPkg, onSelectMod, 
                   const key     = `${pi}-${mi}`;
                   const done    = doneSet.has(key);
                   const isCur   = isActive && mi === activeMod;
-                  const hasVid  = !!m.videoUrl;
+                  const hasVid  = !!m.videoUrl || !!m.videoFile;
                   const hasFile = !!m.file?.url;
                   const hasQuiz = Array.isArray(m.quiz) && m.quiz.length > 0;
 
@@ -1180,7 +1180,8 @@ function LessonViewer({ pkg, modIdx, onDone, done, lang, totalMods, onPrev, onNe
   const m       = modules[modIdx];
   if (!m) return null;
 
-  const hasVideo = !!m.videoUrl;
+  const hasVideo     = !!m.videoUrl;
+  const hasVideoFile = !!m.videoFile;
   const hasFile  = !!m.file?.url;
   const hasQuiz  = Array.isArray(m.quiz) && m.quiz.length > 0;
   const title    = gT(m.title, lang);
@@ -1225,10 +1226,17 @@ function LessonViewer({ pkg, modIdx, onDone, done, lang, totalMods, onPrev, onNe
         </Button>
       </Stack>
 
-      {/* ── Video ── */}
+      {/* ── Video (YouTube or external URL) ── */}
       {hasVideo && (
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: hasVideoFile ? 2 : 3 }}>
           <VideoPlayer url={m.videoUrl} />
+        </Box>
+      )}
+
+      {/* ── Video file (T3 uploaded — shown via LMSVideoPlayer with presign) ── */}
+      {hasVideoFile && (
+        <Box sx={{ mb: 3 }}>
+          <LMSVideoPlayer url={m.videoFile} />
         </Box>
       )}
 
