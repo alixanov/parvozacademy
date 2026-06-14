@@ -121,11 +121,19 @@ app.use(`${API}/packages`,               packagesRoutes);
 // When deployed as backend-only (separate frontend service), client/dist won't
 // exist — we skip static serving automatically so only the API is exposed.
 if (IS_PROD && existsSync(join(CLIENT_DIST, 'index.html'))) {
-  app.use(express.static(CLIENT_DIST));
+  // Serve hashed JS/CSS assets with long cache (immutable — hash changes on rebuild)
+  app.use('/assets', express.static(join(CLIENT_DIST, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+  }));
+  // Serve everything else (favicon, etc.) with no-cache
+  app.use(express.static(CLIENT_DIST, { maxAge: 0, etag: false }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path === '/health') {
       return res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
     }
+    // index.html must never be cached — so browsers always get the latest asset hashes
+    res.set('Cache-Control', 'no-store');
     res.sendFile(join(CLIENT_DIST, 'index.html'), (err) => {
       if (err) {
         console.error('[SPA] sendFile error:', err.message, '| dist:', CLIENT_DIST);
