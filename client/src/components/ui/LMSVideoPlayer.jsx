@@ -25,16 +25,27 @@ function storageKey(url) {
 async function fetchPresigned(rawUrl) {
   try {
     const { store } = await import('../../app/store.js');
-    const token = store.getState().auth?.accessToken;
-    const isT3  = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
+
+    const isT3 = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
     if (!isT3) return rawUrl;
-    const res  = await fetch(`/api/v1/uploads/presign?key=${encodeURIComponent(rawUrl)}`, {
+
+    // Wait up to 4s for auth to initialize (mobile: AuthInitializer is async)
+    let token = store.getState().auth?.accessToken;
+    if (!token) {
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        token = store.getState().auth?.accessToken;
+        if (token) break;
+      }
+    }
+
+    const res = await fetch(`/api/v1/uploads/presign?key=${encodeURIComponent(rawUrl)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) return rawUrl;
+    if (!res.ok) throw new Error(`presign ${res.status}`);
     const json = await res.json();
     return json?.data?.url ?? rawUrl;
-  } catch { return rawUrl; }
+  } catch { return null; } // null → trigger retry in caller
 }
 
 /* detect touch device */
@@ -216,13 +227,22 @@ export default function LMSVideoPlayer({ url, title, onProgress }) {
   const [started,   setStarted]   = useState(false);
 
   /* ── Presigned URL ── */
-  const loadPresign = useCallback(async (rawUrl) => {
+  const loadPresign = useCallback(async (rawUrl, attempt = 0) => {
     setLoading(true); setError(null);
     try {
       const signed = await fetchPresigned(rawUrl);
+      if (!signed) {
+        // presign failed — retry up to 3 times with backoff
+        if (attempt < 3) {
+          setTimeout(() => loadPresign(rawUrl, attempt + 1), 1500 * (attempt + 1));
+        } else {
+          setError('Video yuklanmadi. Qayta urinib ko\'ring.');
+          setLoading(false);
+        }
+        return;
+      }
       setSrc(signed);
       clearTimeout(presignRef.current);
-      // refresh presign every 5.5 hours (expiry = 6h)
       presignRef.current = setTimeout(() => loadPresign(rawUrl), 5.5 * 60 * 60 * 1000);
     } catch { setError('Videoni yuklashda xatolik'); }
     finally  { setLoading(false); }
@@ -263,7 +283,16 @@ export default function LMSVideoPlayer({ url, title, onProgress }) {
   const onWaiting  = () => setWaitBuf(true);
   const onCanPlay  = () => setWaitBuf(false);
   const onEnded    = () => { setPlaying(false); cancelAnimationFrame(rafRef.current); };
-  const onError    = () => { setError("Video yuklanmadi. Qayta urinib ko'ring."); setLoading(false); };
+  const onError    = () => {
+    // video element failed to load src — re-fetch presigned URL once before showing error
+    if (url) {
+      setSrc(null);
+      loadPresign(url, 1);
+    } else {
+      setError("Video yuklanmadi. Qayta urinib ko'ring.");
+      setLoading(false);
+    }
+  };
   const onTimeUpdate = () => {
     if (!vidRef.current || !url) return;
     localStorage.setItem(storageKey(url), String(Math.floor(vidRef.current.currentTime)));
