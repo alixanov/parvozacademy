@@ -1,4 +1,4 @@
-import { verifyAccess } from '../utils/jwt.utils.js';
+import { verifyAccess, verifyRefresh } from '../utils/jwt.utils.js';
 import { AppError } from '../utils/response.utils.js';
 import { User } from '../models/index.js';
 
