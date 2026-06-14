@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { authenticate } from '../../middleware/auth.middleware.js';
+import { authenticate, authenticateVideo } from '../../middleware/auth.middleware.js';
 import {
   uploadImageRoute, uploadDocumentRoute, uploadVideoRoute,
-  uploadReceiptRoute, viewFileRoute, presignFileRoute,
+  uploadReceiptRoute, viewFileRoute, presignFileRoute, streamFileRoute,
 } from './uploads.controller.js';
 
 const router = Router();
@@ -24,6 +24,14 @@ router.post(
  * Returns a 1-hour presigned URL for a private T3 object.
  */
 router.get('/presign', authenticate, presignFileRoute);
+
+/**
+ * GET /api/v1/uploads/stream?key=lessons/xxx.mp4
+ * Server-side proxy for private T3 video files. Supports Range requests (seeking).
+ * Auth: Bearer header, ?token= access token, OR refreshToken cookie.
+ * Using cookie auth means no token needed in URL — browser sends it automatically.
+ */
+router.get('/stream', authenticateVideo, streamFileRoute);
 
 /**
  * GET /api/v1/uploads/view?key=receipts/xxx.png  — any authenticated user

@@ -105,6 +105,49 @@ export async function presignFileRoute(req, res, next) {
 }
 
 /**
+ * GET /api/v1/uploads/stream?key=lessons/xxx.mp4  — authenticated users (cookie or token)
+ * Proxies a private T3 video/file through the server so the browser can stream it
+ * without CORS issues. Supports Range requests so video seeking works on iOS Safari.
+ */
+export async function streamFileRoute(req, res, next) {
+  try {
+    let key = req.query.key ?? '';
+    if (!key) return next(new AppError('key is required', 400));
+
+    const prefix = `${process.env.T3_ENDPOINT}/${BUCKET}/`;
+    if (key.startsWith(prefix)) key = key.slice(prefix.length);
+    if (key.startsWith('http')) return next(new AppError('Invalid key', 400));
+
+    const cmdParams = { Bucket: BUCKET, Key: key };
+
+    // Pass Range header through to S3 so the browser can seek/scrub video
+    const range = req.headers.range;
+    if (range) cmdParams.Range = range;
+
+    const obj = await s3.send(new GetObjectCommand(cmdParams));
+
+    const ext = key.split('.').pop().toLowerCase();
+    const MIME = { mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg', mov: 'video/quicktime', m4v: 'video/mp4' };
+    const mime = obj.ContentType || MIME[ext] || 'application/octet-stream';
+
+    res.set('Content-Type', mime);
+    res.set('Accept-Ranges', 'bytes');
+    res.set('Cache-Control', 'private, max-age=3600');
+
+    if (range && obj.ContentRange) {
+      res.status(206);
+      res.set('Content-Range', obj.ContentRange);
+    }
+    if (obj.ContentLength) res.set('Content-Length', String(obj.ContentLength));
+
+    obj.Body.pipe(res);
+    obj.Body.on('error', next);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/v1/uploads/view?key=receipts/xxx.png  — authenticated users
  * Proxies a private T3 object to the client so it can be displayed in the browser.
  * Accepts either a bare key ("receipts/xxx.png") or a full T3 URL.

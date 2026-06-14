@@ -611,26 +611,17 @@ const Label = ({ children, icon }) => (
 
 /* Лёгкий нативный плеер для превью в диалоге */
 function SimpleVideoPreview({ url }) {
-  const [src, setSrc] = useState(null);
-  useEffect(() => {
-    if (!url) return;
-    const isT3 = url.includes('t3.storage.dev') || url.includes('tigris');
-    if (!isT3) { setSrc(url); return; }
-    import('../../../app/store.js').then(({ store }) => {
-      const token = store.getState().auth?.accessToken;
-      fetch(`/api/v1/uploads/presign?key=${encodeURIComponent(url)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }).then(r => r.json()).then(j => setSrc(j?.data?.url ?? url)).catch(() => setSrc(url));
-    });
-  }, [url]);
-  if (!src) return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2, bgcolor: '#000', borderRadius: 2 }}>
-      <CircularProgress size={24} sx={{ color: '#fff' }} />
-    </Box>
-  );
+  if (!url) return null;
+  const isT3 = url.includes('t3.storage.dev') || url.includes('tigris');
+  // For T3 private files: use server-side streaming proxy (same-origin, no CORS,
+  // supports Range requests). Browser sends refreshToken cookie automatically.
+  const src = isT3
+    ? `/api/v1/uploads/stream?key=${encodeURIComponent(url)}`
+    : url;
   return (
     <Box sx={{ borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
-      <Box component="video" src={src} controls sx={{ width: '100%', display: 'block', maxHeight: 280 }} />
+      <Box component="video" src={src} controls playsInline
+        sx={{ width: '100%', display: 'block', maxHeight: 280 }} />
     </Box>
   );
 }

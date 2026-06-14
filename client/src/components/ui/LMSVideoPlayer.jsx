@@ -22,31 +22,16 @@ function storageKey(url) {
   try { return `lms_vp_${btoa(url).slice(0, 40)}`; } catch { return `lms_vp_${url.slice(-40)}`; }
 }
 
-async function fetchPresigned(rawUrl) {
-  try {
-    const { store } = await import('../../app/store.js');
+function fetchPresigned(rawUrl) {
+  const isT3 = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
+  if (!isT3) return Promise.resolve(rawUrl);
 
-    const isT3 = rawUrl.includes('t3.storage.dev') || rawUrl.includes('tigris');
-    if (!isT3) return rawUrl;
-
-    // Wait until auth finishes initializing (mobile: refresh cookie fetch is async)
-    // authSlice.initializing starts true, becomes false after refresh completes/fails
-    for (let i = 0; i < 20; i++) {
-      const auth = store.getState().auth;
-      if (!auth.initializing) break;
-      await new Promise((r) => setTimeout(r, 300));
-    }
-
-    const token = store.getState().auth?.accessToken;
-    if (!token) return null; // user not authenticated
-
-    const res = await fetch(`/api/v1/uploads/presign?key=${encodeURIComponent(rawUrl)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`presign ${res.status}`);
-    const json = await res.json();
-    return json?.data?.url ?? null;
-  } catch { return null; }
+  // Use server-side streaming proxy — same-origin, no CORS issues, supports Range
+  // requests so video seeking works on iOS Safari. The browser sends the httpOnly
+  // refreshToken cookie automatically (same-origin), so no token needed in the URL.
+  return Promise.resolve(
+    `/api/v1/uploads/stream?key=${encodeURIComponent(rawUrl)}`
+  );
 }
 
 /* detect touch device */
@@ -243,8 +228,6 @@ export default function LMSVideoPlayer({ url, title, onProgress }) {
         return;
       }
       setSrc(signed);
-      clearTimeout(presignRef.current);
-      presignRef.current = setTimeout(() => loadPresign(rawUrl), 5.5 * 60 * 60 * 1000);
     } catch { setError('Videoni yuklashda xatolik'); }
     finally  { setLoading(false); }
   }, []);
