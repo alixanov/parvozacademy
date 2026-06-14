@@ -1,40 +1,45 @@
 import { store } from '../app/store.js';
 
 /**
- * Opens a private T3 Storage file in a new browser tab via a presigned URL.
- * Waits for auth to initialize before requesting presign (important on mobile).
+ * Opens a private T3 Storage file via presigned URL.
+ *
+ * Safari fix: window.open() MUST be called synchronously during a user gesture.
+ * Any await before window.open() causes Safari to block the popup.
+ * Solution: open about:blank immediately, then set location after presign.
  */
 export async function openPrivateFile(fileUrl) {
   if (!fileUrl) return;
 
-  // Wait until auth finishes initializing (mobile: refresh cookie fetch is async)
-  for (let i = 0; i < 20; i++) {
-    const auth = store.getState().auth;
-    if (!auth.initializing) break;
-    await new Promise((r) => setTimeout(r, 300));
-  }
-
-  const token = store.getState().auth?.accessToken;
-  if (!token) {
-    // Not authenticated — try direct URL as fallback
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
-    return;
-  }
+  // Open blank window immediately (synchronous — Safari allows this)
+  const win = window.open('about:blank', '_blank');
 
   try {
-    const res = await fetch(
-      `/api/v1/uploads/presign?key=${encodeURIComponent(fileUrl)}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (res.ok) {
-      const json = await res.json();
-      const presigned = json?.data?.url;
-      if (presigned) {
-        window.open(presigned, '_blank', 'noopener,noreferrer');
-        return;
+    // Wait for auth to finish initializing (max 6s)
+    for (let i = 0; i < 20; i++) {
+      const auth = store.getState().auth;
+      if (!auth.initializing) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    const token = store.getState().auth?.accessToken;
+
+    if (token) {
+      const res = await fetch(
+        `/api/v1/uploads/presign?key=${encodeURIComponent(fileUrl)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) {
+        const json = await res.json();
+        const presigned = json?.data?.url;
+        if (presigned && win) {
+          win.location.href = presigned;
+          return;
+        }
       }
     }
   } catch { /* fall through */ }
 
-  window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  // Fallback: navigate to raw URL (will show AccessDenied for private files,
+  // but at least the window is already open so Safari won't block it)
+  if (win) win.location.href = fileUrl;
 }
